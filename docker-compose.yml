@@ -1,0 +1,61 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wanderlog-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wanderlog
+      POSTGRES_PASSWORD: wanderlog
+      POSTGRES_DB: wanderlog
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wanderlog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: wanderlog-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://wanderlog:wanderlog@postgres:5432/wanderlog
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-secret-key}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-refresh-secret-key}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_PATH: /app/uploads
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: wanderlog-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  uploads:

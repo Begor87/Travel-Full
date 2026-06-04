@@ -1,0 +1,434 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  avatarUrl   String?
+  passwordHash String?
+  role        UserRole @default(USER)
+  isVerified  Boolean  @default(false)
+  preferences Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  refreshTokens     RefreshToken[]
+  ownedTrips        Trip[]           @relation("TripOwner")
+  collaborations    TripCollaborator[]
+  sentInvitations   TripInvitation[] @relation("InvitedBy")
+  activities        ActivityLog[]
+  expenses          Expense[]        @relation("ExpensePaidBy")
+  documents         Document[]
+  comments          Comment[]
+  oauthAccounts     OAuthAccount[]
+
+  @@index([email])
+}
+
+model OAuthAccount {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String
+  providerId String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ─── Trips ───────────────────────────────────────────────────────────────────
+
+model Trip {
+  id             String      @id @default(cuid())
+  title          String
+  description    String?
+  coverImageUrl  String?
+  status         TripStatus  @default(PLANNING)
+  category       TripCategory @default(LEISURE)
+  tags           String[]    @default([])
+  visibility     Visibility  @default(PRIVATE)
+  startDate      DateTime    @db.Date
+  endDate        DateTime    @db.Date
+  timezone       String      @default("UTC")
+  ownerId        String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  owner          User              @relation("TripOwner", fields: [ownerId], references: [id])
+  destinations   TripDestination[]
+  collaborators  TripCollaborator[]
+  invitations    TripInvitation[]
+  days           ItineraryDay[]
+  documents      Document[]
+  expenses       Expense[]
+  budget         Budget?
+  activities     ActivityLog[]
+  comments       Comment[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model TripDestination {
+  id          String  @id @default(cuid())
+  tripId      String
+  name        String
+  country     String
+  countryCode String  @db.Char(2)
+  latitude    Float?
+  longitude   Float?
+  placeId     String?
+  order       Int     @default(0)
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+}
+
+// ─── Collaboration ───────────────────────────────────────────────────────────
+
+model TripCollaborator {
+  id       String           @id @default(cuid())
+  tripId   String
+  userId   String
+  role     CollaboratorRole @default(VIEWER)
+  joinedAt DateTime         @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+  @@index([tripId])
+  @@index([userId])
+}
+
+model TripInvitation {
+  id          String           @id @default(cuid())
+  tripId      String
+  email       String
+  role        CollaboratorRole @default(VIEWER)
+  status      InvitationStatus @default(PENDING)
+  invitedById String
+  token       String           @unique @default(cuid())
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  trip      Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  invitedBy User @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([token])
+  @@index([tripId])
+  @@index([email])
+}
+
+// ─── Itinerary ───────────────────────────────────────────────────────────────
+
+model ItineraryDay {
+  id      String    @id @default(cuid())
+  tripId  String
+  date    DateTime  @db.Date
+  title   String?
+  notes   String?
+
+  trip   Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  events ItineraryEvent[]
+
+  @@unique([tripId, date])
+  @@index([tripId])
+}
+
+model ItineraryEvent {
+  id               String        @id @default(cuid())
+  tripId           String
+  dayId            String
+  title            String
+  description      String?
+  category         EventCategory @default(OTHER)
+  status           EventStatus   @default(CONFIRMED)
+  startTime        DateTime?
+  endTime          DateTime?
+  allDay           Boolean       @default(false)
+  duration         Int?
+  locationName     String?
+  locationAddress  String?
+  locationLat      Float?
+  locationLng      Float?
+  locationPlaceId  String?
+  notes            String?
+  reminderMinutes  Int?
+  order            Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  day              ItineraryDay       @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  bookingRefs      BookingReference[]
+  checklistItems   ChecklistItem[]
+  attachments      Document[]         @relation("EventDocuments")
+
+  @@index([dayId])
+  @@index([tripId])
+  @@index([startTime])
+}
+
+model BookingReference {
+  id        String @id @default(cuid())
+  eventId   String
+  provider  String
+  reference String
+  url       String?
+
+  event ItineraryEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model ChecklistItem {
+  id      String  @id @default(cuid())
+  eventId String
+  text    String
+  checked Boolean @default(false)
+  order   Int     @default(0)
+
+  event ItineraryEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+// ─── Documents ───────────────────────────────────────────────────────────────
+
+model Document {
+  id            String       @id @default(cuid())
+  userId        String
+  tripId        String?
+  title         String
+  type          DocumentType @default(OTHER)
+  mimeType      String
+  sizeBytes     Int
+  storageKey    String
+  thumbnailKey  String?
+  tags          String[]     @default([])
+  notes         String?
+  ocrText       String?
+  isEncrypted   Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user          User             @relation(fields: [userId], references: [id])
+  trip          Trip?            @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  linkedEvents  ItineraryEvent[] @relation("EventDocuments")
+  expense       Expense?         @relation("ExpenseReceipt")
+
+  @@index([userId])
+  @@index([tripId])
+}
+
+// ─── Budget & Expenses ───────────────────────────────────────────────────────
+
+model Budget {
+  id          String   @id @default(cuid())
+  tripId      String   @unique
+  totalAmount Float
+  currency    String   @default("USD")
+  categories  Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
+model Expense {
+  id                   String          @id @default(cuid())
+  tripId               String
+  title                String
+  amount               Float
+  currency             String
+  amountInBaseCurrency Float?
+  category             ExpenseCategory @default(OTHER)
+  paidById             String
+  date                 DateTime        @db.Date
+  notes                String?
+  receiptDocumentId    String?         @unique
+  linkedEventId        String?
+  splits               Json            @default("[]")
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  trip    Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  paidBy  User      @relation("ExpensePaidBy", fields: [paidById], references: [id])
+  receipt Document? @relation("ExpenseReceipt", fields: [receiptDocumentId], references: [id])
+
+  @@index([tripId])
+  @@index([paidById])
+}
+
+// ─── Comments & Activity ─────────────────────────────────────────────────────
+
+model Comment {
+  id        String   @id @default(cuid())
+  tripId    String
+  userId    String
+  content   String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip   Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user   User      @relation(fields: [userId], references: [id])
+  parent Comment?  @relation("CommentThread", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentThread")
+
+  @@index([tripId])
+}
+
+model ActivityLog {
+  id          String             @id @default(cuid())
+  tripId      String
+  userId      String
+  action      ActivityAction
+  entityType  ActivityEntityType
+  entityId    String
+  entityTitle String?
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([tripId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum TripStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum TripCategory {
+  LEISURE
+  BUSINESS
+  FAMILY
+  ADVENTURE
+  CULTURAL
+  OTHER
+}
+
+enum Visibility {
+  PRIVATE
+  SHARED
+  PUBLIC
+}
+
+enum CollaboratorRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum EventCategory {
+  FLIGHT
+  TRAIN
+  BUS
+  FERRY
+  CAR
+  ACCOMMODATION
+  ACTIVITY
+  RESTAURANT
+  SIGHTSEEING
+  MEETING
+  FREE_TIME
+  OTHER
+}
+
+enum EventStatus {
+  CONFIRMED
+  TENTATIVE
+  CANCELLED
+}
+
+enum DocumentType {
+  TICKET
+  BOOKING_CONFIRMATION
+  PASSPORT
+  VISA
+  INSURANCE
+  ITINERARY
+  VOUCHER
+  RECEIPT
+  EMERGENCY_CONTACT
+  OTHER
+}
+
+enum ExpenseCategory {
+  ACCOMMODATION
+  TRANSPORT
+  FOOD
+  ACTIVITIES
+  SHOPPING
+  HEALTH
+  COMMUNICATION
+  OTHER
+}
+
+enum ActivityAction {
+  CREATED
+  UPDATED
+  DELETED
+  INVITED
+  JOINED
+  COMMENTED
+  UPLOADED
+  COMPLETED
+}
+
+enum ActivityEntityType {
+  TRIP
+  EVENT
+  DOCUMENT
+  EXPENSE
+  COMMENT
+  COLLABORATOR
+}

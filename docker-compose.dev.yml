@@ -1,0 +1,19 @@
+version: '3.9'
+
+# Development override — only starts infrastructure, not the apps
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wanderlog-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wanderlog
+      POSTGRES_PASSWORD: wanderlog
+      POSTGRES_DB: wanderlog
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_dev_data:
