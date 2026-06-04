@@ -5,6 +5,17 @@ import { validate } from '../../shared/middleware/validate.js';
 import * as usersService from './users.service.js';
 import type { Request, Response, NextFunction } from 'express';
 
+function handler(fn: (userId: string, req: Request) => Promise<unknown>) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await fn((req as AuthenticatedRequest).userId, req);
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
 export const usersRouter = Router();
 
 const updateProfileSchema = z.object({
@@ -43,6 +54,11 @@ usersRouter.patch(
     }
   },
 );
+
+usersRouter.get('/me/upcoming', authenticate, handler((id) => usersService.getUpcomingEvents(id)));
+usersRouter.get('/me/people',   authenticate, handler((id) => usersService.getAllCollaborators(id)));
+usersRouter.get('/me/documents',authenticate, handler((id) => usersService.getAllDocuments(id)));
+usersRouter.get('/me/budgets',  authenticate, handler((id) => usersService.getAllTripBudgets(id)));
 
 usersRouter.patch(
   '/me/preferences',
