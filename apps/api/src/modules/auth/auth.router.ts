@@ -22,10 +22,16 @@ authRouter.post(
 
 authRouter.post(
   '/login',
-  validate(loginSchema),
   async (req: Request, res: Response, next: NextFunction) => {
+    // Validate shape minimally — always return 401 for bad credentials,
+    // never 422, so the response doesn't reveal whether the format or the
+    // credentials were wrong.
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return next(new (await import('../../shared/errors/AppError.js')).AuthenticationError('Invalid email or password'));
+    }
     try {
-      const tokens = await authService.login(req.body);
+      const tokens = await authService.login(parsed.data);
       res.json({ data: tokens });
     } catch (err) {
       next(err);
