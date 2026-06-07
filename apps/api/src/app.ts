@@ -18,6 +18,7 @@ import { itineraryRouter } from './modules/itinerary/itinerary.router.js';
 import { collaborationRouter } from './modules/collaboration/collaboration.router.js';
 import { budgetRouter } from './modules/budget/budget.router.js';
 import { aiRouter } from './modules/ai/ai.router.js';
+import { weatherRouter } from './modules/weather/weather.router.js';
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use(`${API}/trips/:tripId/itinerary`, itineraryRouter);
 app.use(`${API}/trips/:tripId/collaborators`, collaborationRouter);
 app.use(`${API}/trips/:tripId/budget`, budgetRouter);
 app.use(`${API}/trips/:tripId/ai`, aiRouter);
+app.use(`${API}/trips/:tripId/weather`, weatherRouter);
 
 // Health check
 app.get('/health', (_req, res) => {

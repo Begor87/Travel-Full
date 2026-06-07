@@ -12,6 +12,8 @@ import { PageLoader } from '@/shared/components/ui/LoadingSpinner.tsx';
 import { EmptyState } from '@/shared/components/ui/EmptyState.tsx';
 import { EventForm } from '../components/EventForm.tsx';
 import { DayMap } from '../components/DayMap.tsx';
+import { WeatherChip } from '../components/WeatherChip.tsx';
+import { weatherApi, type DailyForecast } from '@/services/api/weather.ts';
 import { cn } from '@/shared/utils/cn.ts';
 import { formatTimeRange } from '@/shared/utils/datetime.ts';
 import { formatMoney, type ItineraryDay, type ItineraryEvent, type CreateEventInput, type ApiResponse } from '@wanderlog/shared';
@@ -120,26 +122,30 @@ function EventCard({ event, onEdit, onDelete }: EventCardProps) {
 
 interface DayColumnProps {
   day: ItineraryDay;
+  forecast?: DailyForecast;
   onAddEvent: (dayId: string) => void;
   onEditEvent: (event: ItineraryEvent) => void;
   onDeleteEvent: (eventId: string) => void;
 }
 
-function DayColumn({ day, onAddEvent, onEditEvent, onDeleteEvent }: DayColumnProps) {
+function DayColumn({ day, forecast, onAddEvent, onEditEvent, onDeleteEvent }: DayColumnProps) {
   const events = day.events ?? [];
 
   return (
     <div className="min-w-[280px] w-[280px] sm:min-w-0 sm:w-auto">
-      <div className="flex items-center justify-between mb-3">
-        <div>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="min-w-0">
           <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">
             {format(new Date(day.date), 'EEE, MMM d')}
           </p>
-          {day.title && <p className="text-xs text-slate-500 dark:text-slate-400">{day.title}</p>}
+          {day.title && <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{day.title}</p>}
         </div>
-        <Button variant="ghost" size="icon" onClick={() => onAddEvent(day.id)} title="Add event">
-          <Plus className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {forecast && <WeatherChip forecast={forecast} />}
+          <Button variant="ghost" size="icon" onClick={() => onAddEvent(day.id)} title="Add event">
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -195,6 +201,15 @@ export default function ItineraryPage() {
   });
   const firstDest = tripData?.data?.destinations?.[0];
   const geocodeContext = firstDest ? `${firstDest.name}, ${firstDest.country}` : undefined;
+
+  // Weather forecast — only the next ~5 days are available; others return empty
+  const { data: weatherData } = useQuery({
+    queryKey: ['weather', tripId],
+    queryFn: () => weatherApi.getTripWeather(tripId!),
+    enabled: !!tripId,
+    staleTime: 30 * 60 * 1000, // 30 min — weather changes slowly
+  });
+  const forecastByDate = weatherData?.data?.days ?? {};
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['itinerary', tripId] });
@@ -280,6 +295,7 @@ export default function ItineraryPage() {
               <DayColumn
                 key={day.id}
                 day={day}
+                forecast={forecastByDate[day.date.slice(0, 10)]}
                 onAddEvent={(dayId) => setAddingToDayId(dayId)}
                 onEditEvent={(event) => setEditingEvent(event)}
                 onDeleteEvent={(eventId) => deleteEventMutation.mutate(eventId)}
