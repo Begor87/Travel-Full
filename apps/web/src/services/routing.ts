@@ -1,67 +1,77 @@
 import type { LatLng } from './geocode.ts';
 
-export type TravelMode = 'walk' | 'cycle' | 'drive';
+export type TravelMode = 'walk' | 'cycle' | 'drive' | 'transit' | 'flight' | 'ferry';
 
-export interface RouteResult {
-  /** Ordered [lng, lat] pairs for the route line (Leaflet wants [lat, lng]). */
+export interface LegRoute {
+  /** Ordered [lat, lng] pairs for the route line. */
   coordinates: [number, number][];
-  /** Total distance in metres. */
   distanceMeters: number;
-  /** Estimated duration in seconds for the chosen mode. */
   durationSeconds: number;
+  /** True when the geometry follows real roads/paths; false for straight lines. */
+  routed: boolean;
 }
 
-// Average speeds (m/s) used to estimate per-mode time from route distance.
-const SPEED: Record<TravelMode, number> = {
-  walk: 1.4,   // ~5 km/h
-  cycle: 4.2,  // ~15 km/h
-  drive: 11.1, // ~40 km/h city average
+// FOSSGIS community OSRM servers, one per profile — these respect the actual
+// network for each mode (walking ignores one-way streets, etc).
+const OSRM_PROFILE: Record<'walk' | 'cycle' | 'drive', { server: string; profile: string }> = {
+  walk:  { server: 'routed-foot', profile: 'foot' },
+  cycle: { server: 'routed-bike', profile: 'bike' },
+  drive: { server: 'routed-car',  profile: 'driving' },
 };
 
+// Average speeds (m/s) for modes we can't route on the free OSM stack.
+const STRAIGHT_SPEED: Record<'transit' | 'flight' | 'ferry', number> = {
+  transit: 7,    // ~25 km/h urban average incl. stops
+  ferry: 9.7,    // ~35 km/h
+  flight: 222,   // ~800 km/h cruise (gross estimate; ignores airport time)
+};
+
+/** Whether a mode draws a real routed path or a straight line. */
+export function isRouted(mode: TravelMode): mode is 'walk' | 'cycle' | 'drive' {
+  return mode === 'walk' || mode === 'cycle' || mode === 'drive';
+}
+
 /**
- * Fetches a route through the given points (in order) from the public OSRM
- * demo server. OSRM's demo only exposes the driving network, so we take its
- * road geometry + distance and estimate the duration for the selected mode
- * from average speeds. Good enough for trip planning; not turn-by-turn.
+ * Routes a single leg between two points using the right network for the mode.
+ * walk/cycle/drive use the matching OSRM profile server. transit/flight/ferry
+ * (which the free OSM stack can't route) fall back to a straight line with a
+ * speed-based time estimate.
  */
-export async function getRoute(points: LatLng[], mode: TravelMode): Promise<RouteResult | null> {
-  if (points.length < 2) return null;
-
-  const coordStr = points.map((p) => `${p.lng},${p.lat}`).join(';');
-  const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
-
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = (await res.json()) as {
-      code: string;
-      routes: Array<{ distance: number; geometry: { coordinates: [number, number][] } }>;
-    };
-
-    if (body.code !== 'Ok' || !body.routes[0]) return null;
-
-    const route = body.routes[0];
-    const coordinates: [number, number][] = route.geometry.coordinates.map(
-      ([lng, lat]) => [lat, lng],
-    );
-
-    return {
-      coordinates,
-      distanceMeters: route.distance,
-      durationSeconds: route.distance / SPEED[mode],
-    };
-  } catch {
-    // Fallback: straight-line distance + estimate
-    let distance = 0;
-    for (let i = 1; i < points.length; i++) {
-      distance += haversine(points[i - 1], points[i]);
+export async function getLeg(from: LatLng, to: LatLng, mode: TravelMode): Promise<LegRoute> {
+  if (isRouted(mode)) {
+    const { server, profile } = OSRM_PROFILE[mode];
+    const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+    const url = `https://routing.openstreetmap.de/${server}/route/v1/${profile}/${coords}?overview=full&geometries=geojson`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = (await res.json()) as {
+        code: string;
+        routes: Array<{ distance: number; duration: number; geometry: { coordinates: [number, number][] } }>;
+      };
+      if (body.code === 'Ok' && body.routes[0]) {
+        const r = body.routes[0];
+        return {
+          coordinates: r.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+          distanceMeters: r.distance,
+          durationSeconds: r.duration,
+          routed: true,
+        };
+      }
+    } catch {
+      // fall through to straight line
     }
-    return {
-      coordinates: points.map((p) => [p.lat, p.lng]),
-      distanceMeters: distance,
-      durationSeconds: distance / SPEED[mode],
-    };
   }
+
+  // Straight line (transit/flight/ferry, or routing failure)
+  const distance = haversine(from, to);
+  const speed = isRouted(mode) ? 1.4 : STRAIGHT_SPEED[mode];
+  return {
+    coordinates: [[from.lat, from.lng], [to.lat, to.lng]],
+    distanceMeters: distance,
+    durationSeconds: distance / speed,
+    routed: false,
+  };
 }
 
 function haversine(a: LatLng, b: LatLng): number {
@@ -80,6 +90,7 @@ export function formatDistance(meters: number): string {
 
 export function formatDuration(seconds: number): string {
   const mins = Math.round(seconds / 60);
+  if (mins < 1) return '<1 min';
   if (mins < 60) return `${mins} min`;
   const h = Math.floor(mins / 60);
   const m = mins % 60;

@@ -39,6 +39,23 @@ function enqueue<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/**
+ * Geocodes a place name, trying the raw name first and only falling back to
+ * "name, context" if the raw lookup finds nothing. This handles multi-city
+ * trips correctly: a clearly-named place ("London Gatwick", or an address that
+ * already includes its city like "Piazzale degli Uffizi, Florence") resolves on
+ * its own, while a bare address ("172 Blvd Saint-Germain") gets the trip's
+ * destination appended as a hint. Appending context to everything would wrongly
+ * push out-of-town stops (e.g. a London airport on a Rome trip) to the wrong
+ * place — so raw always wins when it succeeds.
+ */
+export async function geocodeSmart(name: string, context?: string): Promise<LatLng | null> {
+  const raw = await geocode(name);
+  if (raw) return raw;
+  if (context) return geocode(`${name}, ${context}`);
+  return null;
+}
+
 export async function geocode(query: string): Promise<LatLng | null> {
   const key = query.trim().toLowerCase();
   if (!key) return null;
