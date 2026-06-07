@@ -14,3 +14,4 @@ export * from './schemas/itinerary.js';
 
 // Constants
 export * from './constants/index.js';
+export * from './constants/currency.js';

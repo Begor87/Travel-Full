@@ -1,17 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
-import { Plus, AlertTriangle, Calendar, Clock, MapPin } from 'lucide-react';
+import { Plus, AlertTriangle, Calendar, Clock, MapPin, Pencil, Trash2, Map as MapIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { itineraryApi } from '@/services/api/itinerary.ts';
+import { api } from '@/services/api/client.ts';
 import { Button } from '@/shared/components/ui/Button.tsx';
 import { Modal } from '@/shared/components/ui/Modal.tsx';
 import { PageLoader } from '@/shared/components/ui/LoadingSpinner.tsx';
 import { EmptyState } from '@/shared/components/ui/EmptyState.tsx';
-import { CreateEventForm } from '../components/CreateEventForm.tsx';
+import { EventForm } from '../components/EventForm.tsx';
+import { DayMap } from '../components/DayMap.tsx';
 import { cn } from '@/shared/utils/cn.ts';
-import type { ItineraryDay, ItineraryEvent, CreateEventInput } from '@wanderlog/shared';
+import { formatTimeRange } from '@/shared/utils/datetime.ts';
+import { formatMoney, type ItineraryDay, type ItineraryEvent, type CreateEventInput, type ApiResponse } from '@wanderlog/shared';
 
 const EVENT_CATEGORY_COLORS: Record<string, string> = {
   flight: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
@@ -26,47 +29,54 @@ const EVENT_CATEGORY_COLORS: Record<string, string> = {
   meeting: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
   free_time: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
   other: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-  FLIGHT: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  ACCOMMODATION: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
 };
+
+function categoryColor(category: string): string {
+  return EVENT_CATEGORY_COLORS[category.toLowerCase()] ?? EVENT_CATEGORY_COLORS.other;
+}
 
 interface EventCardProps {
   event: ItineraryEvent;
+  onEdit: (event: ItineraryEvent) => void;
   onDelete: (id: string) => void;
 }
 
-function EventCard({ event, onDelete }: EventCardProps) {
+function EventCard({ event, onEdit, onDelete }: EventCardProps) {
   const category = event.category.toLowerCase();
-  const colorClass = EVENT_CATEGORY_COLORS[event.category] ?? EVENT_CATEGORY_COLORS[category] ?? EVENT_CATEGORY_COLORS.other;
+  const cancelled = (event.status as string).toLowerCase() === 'cancelled';
 
   return (
     <div className={cn(
-      'flex gap-3 p-3 rounded-xl border',
-      (event.status as string).toLowerCase() === 'cancelled'
+      'group flex gap-3 p-3 rounded-xl border transition-shadow',
+      cancelled
         ? 'opacity-50 border-dashed border-slate-200 dark:border-slate-700'
-        : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900',
+        : 'border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-card-md',
     )}>
       <div className="flex-shrink-0 mt-0.5">
-        <span className={cn('badge text-xs', colorClass)}>
+        <span className={cn('badge text-xs', categoryColor(category))}>
           {category.replace('_', ' ')}
         </span>
       </div>
 
-      <div className="flex-1 min-w-0">
+      <button onClick={() => onEdit(event)} className="flex-1 min-w-0 text-left">
         <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{event.title}</p>
 
         <div className="flex flex-wrap items-center gap-3 mt-1">
           {event.startTime && (
             <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
               <Clock className="w-3 h-3" />
-              {format(new Date(event.startTime), 'HH:mm')}
-              {event.endTime && ` – ${format(new Date(event.endTime), 'HH:mm')}`}
+              {formatTimeRange(event.startTime, event.endTime)}
             </span>
           )}
           {event.location && (
             <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 truncate max-w-xs">
               <MapPin className="w-3 h-3 flex-shrink-0" />
               {event.location.name}
+            </span>
+          )}
+          {event.cost != null && (
+            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              {formatMoney(event.cost, event.costCurrency ?? 'USD')}
             </span>
           )}
         </div>
@@ -86,27 +96,36 @@ function EventCard({ event, onDelete }: EventCardProps) {
             ))}
           </div>
         )}
-      </div>
-
-      <button
-        onClick={() => onDelete(event.id)}
-        className="flex-shrink-0 text-slate-300 dark:text-slate-600 hover:text-red-400 transition-colors p-1"
-        title="Delete event"
-      >
-        ×
       </button>
+
+      <div className="flex-shrink-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => onEdit(event)}
+          className="text-slate-400 hover:text-brand-500 transition-colors p-1"
+          title="Edit event"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => onDelete(event.id)}
+          className="text-slate-400 hover:text-red-500 transition-colors p-1"
+          title="Delete event"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
 
 interface DayColumnProps {
   day: ItineraryDay;
-  tripId: string;
   onAddEvent: (dayId: string) => void;
+  onEditEvent: (event: ItineraryEvent) => void;
   onDeleteEvent: (eventId: string) => void;
 }
 
-function DayColumn({ day, tripId: _tripId, onAddEvent, onDeleteEvent }: DayColumnProps) {
+function DayColumn({ day, onAddEvent, onEditEvent, onDeleteEvent }: DayColumnProps) {
   const events = day.events ?? [];
 
   return (
@@ -133,7 +152,7 @@ function DayColumn({ day, tripId: _tripId, onAddEvent, onDeleteEvent }: DayColum
           </button>
         ) : (
           events.map((event) => (
-            <EventCard key={event.id} event={event} onDelete={onDeleteEvent} />
+            <EventCard key={event.id} event={event} onEdit={onEditEvent} onDelete={onDeleteEvent} />
           ))
         )}
       </div>
@@ -145,7 +164,8 @@ export default function ItineraryPage() {
   const { tripId } = useParams<{ tripId: string }>();
   const queryClient = useQueryClient();
   const [addingToDayId, setAddingToDayId] = useState<string | null>(null);
-
+  const [editingEvent, setEditingEvent] = useState<ItineraryEvent | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   const { data: itineraryData, isLoading } = useQuery({
     queryKey: ['itinerary', tripId],
@@ -159,24 +179,46 @@ export default function ItineraryPage() {
     enabled: !!tripId,
   });
 
+  // Budget gives us the reporting currency to default new event costs to
+  const { data: budgetData } = useQuery({
+    queryKey: ['budget', tripId],
+    queryFn: () => api.get<ApiResponse<{ currency: string } | null>>(`/trips/${tripId}/budget`),
+    enabled: !!tripId,
+  });
+  const reportingCurrency = budgetData?.data?.currency ?? 'USD';
+
+  // Trip destinations give the map geocoding context (e.g. "Paris, France")
+  const { data: tripData } = useQuery({
+    queryKey: ['trips', tripId],
+    queryFn: () => api.get<ApiResponse<{ destinations: { name: string; country: string }[] }>>(`/trips/${tripId}`),
+    enabled: !!tripId,
+  });
+  const firstDest = tripData?.data?.destinations?.[0];
+  const geocodeContext = firstDest ? `${firstDest.name}, ${firstDest.country}` : undefined;
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['itinerary', tripId] });
+    queryClient.invalidateQueries({ queryKey: ['itinerary-conflicts', tripId] });
+    queryClient.invalidateQueries({ queryKey: ['budget-summary', tripId] });
+  };
+
   const createEventMutation = useMutation({
     mutationFn: ({ dayId, data }: { dayId: string; data: CreateEventInput }) =>
       itineraryApi.createEvent(tripId!, dayId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['itinerary', tripId] });
-      queryClient.invalidateQueries({ queryKey: ['itinerary-conflicts', tripId] });
-      setAddingToDayId(null);
-      toast.success('Event added');
-    },
+    onSuccess: () => { invalidate(); setAddingToDayId(null); toast.success('Event added'); },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updateEventMutation = useMutation({
+    mutationFn: ({ eventId, data }: { eventId: string; data: CreateEventInput }) =>
+      itineraryApi.updateEvent(tripId!, eventId, data),
+    onSuccess: () => { invalidate(); setEditingEvent(null); toast.success('Event updated'); },
     onError: (err: Error) => toast.error(err.message),
   });
 
   const deleteEventMutation = useMutation({
     mutationFn: (eventId: string) => itineraryApi.deleteEvent(tripId!, eventId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['itinerary', tripId] });
-      toast.success('Event removed');
-    },
+    onSuccess: () => { invalidate(); toast.success('Event removed'); },
     onError: (err: Error) => toast.error(err.message),
   });
 
@@ -187,6 +229,25 @@ export default function ItineraryPage() {
 
   return (
     <div>
+      {/* Toolbar */}
+      <div className="flex items-center justify-end mb-4">
+        <Button
+          variant={showMap ? 'primary' : 'outline'}
+          size="sm"
+          leftIcon={<MapIcon className="w-4 h-4" />}
+          onClick={() => setShowMap((s) => !s)}
+        >
+          {showMap ? 'Hide map' : 'Show map'}
+        </Button>
+      </div>
+
+      {/* Map */}
+      {showMap && days.length > 0 && (
+        <div className="mb-6">
+          <DayMap days={days} geocodeContext={geocodeContext} />
+        </div>
+      )}
+
       {/* Conflict alerts */}
       {conflicts.length > 0 && (
         <div className="mb-4 card p-4 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
@@ -219,8 +280,8 @@ export default function ItineraryPage() {
               <DayColumn
                 key={day.id}
                 day={day}
-                tripId={tripId!}
                 onAddEvent={(dayId) => setAddingToDayId(dayId)}
+                onEditEvent={(event) => setEditingEvent(event)}
                 onDeleteEvent={(eventId) => deleteEventMutation.mutate(eventId)}
               />
             ))}
@@ -228,16 +289,25 @@ export default function ItineraryPage() {
         </div>
       )}
 
-      <Modal
-        open={!!addingToDayId}
-        onClose={() => setAddingToDayId(null)}
-        title="Add event"
-        size="lg"
-      >
+      {/* Add event modal */}
+      <Modal open={!!addingToDayId} onClose={() => setAddingToDayId(null)} title="Add event" size="lg">
         {addingToDayId && (
-          <CreateEventForm
+          <EventForm
             onSubmit={(data) => createEventMutation.mutate({ dayId: addingToDayId, data })}
             isSubmitting={createEventMutation.isPending}
+            defaultCurrency={reportingCurrency}
+          />
+        )}
+      </Modal>
+
+      {/* Edit event modal */}
+      <Modal open={!!editingEvent} onClose={() => setEditingEvent(null)} title="Edit event" size="lg">
+        {editingEvent && (
+          <EventForm
+            event={editingEvent}
+            onSubmit={(data) => updateEventMutation.mutate({ eventId: editingEvent.id, data })}
+            isSubmitting={updateEventMutation.isPending}
+            defaultCurrency={reportingCurrency}
           />
         )}
       </Modal>

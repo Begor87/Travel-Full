@@ -49,6 +49,8 @@ export interface ItineraryEvent {
   duration?: number;   // minutes
   location?: EventLocation;
   notes?: string;
+  cost?: number;
+  costCurrency?: string;
   bookingReferences: BookingReference[];
   checklistItems: ChecklistItem[];
   attachmentIds: string[];
@@ -78,6 +80,8 @@ export interface CreateEventInput {
   duration?: number;
   location?: EventLocation;
   notes?: string;
+  cost?: number;
+  costCurrency?: string;
   bookingReferences?: Omit<BookingReference, 'id'>[];
   checklistItems?: Omit<ChecklistItem, 'id'>[];
   reminderMinutes?: number;

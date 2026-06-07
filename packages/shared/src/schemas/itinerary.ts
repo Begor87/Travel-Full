@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+/**
+ * Accepts any datetime string the browser's `datetime-local` input or a full
+ * ISO timestamp can produce, e.g. "2026-01-15T14:00", "2026-01-15T14:00:00",
+ * or "2026-01-15T14:00:00.000Z". Validates it is parseable. The server
+ * normalises it to a Date on write.
+ */
+export const flexibleDateTime = z
+  .string()
+  .refine((v) => !Number.isNaN(Date.parse(v)), 'Invalid date or time');
+
 export const eventLocationSchema = z.object({
   name: z.string().min(1),
   address: z.string().optional(),
@@ -28,12 +38,14 @@ export const createEventSchema = z.object({
     'sightseeing', 'meeting', 'free_time', 'other',
   ]),
   status: z.enum(['confirmed', 'tentative', 'cancelled']).optional().default('confirmed'),
-  startTime: z.string().datetime({ offset: true }).optional(),
-  endTime: z.string().datetime({ offset: true }).optional(),
+  startTime: flexibleDateTime.optional(),
+  endTime: flexibleDateTime.optional(),
   allDay: z.boolean().optional().default(false),
   duration: z.number().int().min(1).optional(),
   location: eventLocationSchema.optional(),
   notes: z.string().max(10000).optional(),
+  cost: z.number().min(0).optional(),
+  costCurrency: z.string().length(3).optional(),
   bookingReferences: z.array(bookingReferenceSchema).optional().default([]),
   checklistItems: z.array(checklistItemSchema).optional().default([]),
   reminderMinutes: z.number().int().min(0).optional(),

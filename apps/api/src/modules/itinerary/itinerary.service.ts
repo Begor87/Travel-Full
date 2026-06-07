@@ -3,10 +3,52 @@ import { assertTripAccess } from '../trips/trips.service.js';
 import { NotFoundError } from '../../shared/errors/AppError.js';
 import type { CreateEventInput, UpdateEventInput, ScheduleConflict } from '@wanderlog/shared';
 
+/**
+ * Parses an event datetime as a "wall-clock at destination" value.
+ *
+ * Event times are floating local times, not instants. If the incoming string
+ * carries no timezone designator (e.g. "2026-09-10T08:00" from a datetime-local
+ * input), we treat it as UTC so the stored value matches what the user typed,
+ * independent of the server's timezone. Strings that already carry an offset or
+ * Z are respected as-is.
+ */
+function parseEventDateTime(value: string): Date {
+  const hasZone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(value);
+  return new Date(hasZone ? value : `${value}Z`);
+}
+
+/**
+ * Maps a Prisma event (flat location columns, `bookingRefs` relation) into the
+ * shape the API exposes and the frontend expects: a nested `location` object
+ * and a `bookingReferences` array.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeEvent(event: any) {
+  const { locationName, locationAddress, locationLat, locationLng, locationPlaceId, bookingRefs, ...rest } = event;
+  return {
+    ...rest,
+    location: locationName
+      ? {
+          name: locationName,
+          address: locationAddress ?? undefined,
+          latitude: locationLat ?? undefined,
+          longitude: locationLng ?? undefined,
+          placeId: locationPlaceId ?? undefined,
+        }
+      : undefined,
+    bookingReferences: bookingRefs ?? [],
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeDay(day: any) {
+  return { ...day, events: (day.events ?? []).map(serializeEvent) };
+}
+
 export async function getTripItinerary(tripId: string, userId: string) {
   await assertTripAccess(tripId, userId);
 
-  return prisma.itineraryDay.findMany({
+  const days = await prisma.itineraryDay.findMany({
     where: { tripId },
     include: {
       events: {
@@ -19,6 +61,8 @@ export async function getTripItinerary(tripId: string, userId: string) {
     },
     orderBy: { date: 'asc' },
   });
+
+  return days.map(serializeDay);
 }
 
 export async function getDayById(dayId: string) {
@@ -52,7 +96,7 @@ export async function createEvent(
   const day = await prisma.itineraryDay.findUnique({ where: { id: dayId } });
   if (!day || day.tripId !== tripId) throw new NotFoundError('Itinerary day');
 
-  return prisma.itineraryEvent.create({
+  const event = await prisma.itineraryEvent.create({
     data: {
       tripId,
       dayId,
@@ -60,8 +104,8 @@ export async function createEvent(
       description: input.description,
       category: input.category.toUpperCase() as never,
       status: (input.status ?? 'confirmed').toUpperCase() as never,
-      startTime: input.startTime ? new Date(input.startTime) : undefined,
-      endTime: input.endTime ? new Date(input.endTime) : undefined,
+      startTime: input.startTime ? parseEventDateTime(input.startTime) : undefined,
+      endTime: input.endTime ? parseEventDateTime(input.endTime) : undefined,
       allDay: input.allDay ?? false,
       duration: input.duration,
       locationName: input.location?.name,
@@ -70,6 +114,8 @@ export async function createEvent(
       locationLng: input.location?.longitude,
       locationPlaceId: input.location?.placeId,
       notes: input.notes,
+      cost: input.cost,
+      costCurrency: input.costCurrency,
       reminderMinutes: input.reminderMinutes,
       order: input.order ?? 0,
       bookingRefs: {
@@ -89,6 +135,8 @@ export async function createEvent(
     },
     include: { bookingRefs: true, checklistItems: true },
   });
+
+  return serializeEvent(event);
 }
 
 export async function updateEvent(
@@ -137,12 +185,14 @@ export async function updateEvent(
         ...(rest.allDay !== undefined && { allDay: rest.allDay }),
         ...(rest.duration !== undefined && { duration: rest.duration }),
         ...(rest.notes !== undefined && { notes: rest.notes }),
+        ...(rest.cost !== undefined && { cost: rest.cost }),
+        ...(rest.costCurrency !== undefined && { costCurrency: rest.costCurrency }),
         ...(rest.reminderMinutes !== undefined && { reminderMinutes: rest.reminderMinutes }),
         ...(rest.order !== undefined && { order: rest.order }),
         ...(rest.category && { category: rest.category.toUpperCase() as Prisma.EnumEventCategoryFieldUpdateOperationsInput['set'] }),
         ...(rest.status && { status: rest.status.toUpperCase() as Prisma.EnumEventStatusFieldUpdateOperationsInput['set'] }),
-        ...(rest.startTime && { startTime: new Date(rest.startTime) }),
-        ...(rest.endTime && { endTime: new Date(rest.endTime) }),
+        ...(rest.startTime && { startTime: parseEventDateTime(rest.startTime) }),
+        ...(rest.endTime && { endTime: parseEventDateTime(rest.endTime) }),
         ...(location !== undefined && {
           locationName: location?.name,
           locationAddress: location?.address,
@@ -153,7 +203,7 @@ export async function updateEvent(
       },
       include: { bookingRefs: true, checklistItems: true },
     });
-  });
+  }).then(serializeEvent);
 }
 
 export async function deleteEvent(eventId: string, tripId: string, userId: string) {

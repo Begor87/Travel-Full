@@ -13,13 +13,27 @@ const upsertBudgetSchema = z.object({
   categories: z.array(z.unknown()).optional(),
 });
 
+const expenseCategoryEnum = z.enum(['accommodation', 'transport', 'food', 'activities', 'shopping', 'health', 'communication', 'other']);
+
 const createExpenseSchema = z.object({
   title: z.string().min(1).max(300),
   amount: z.number().min(0.01),
   currency: z.string().length(3),
-  category: z.enum(['accommodation', 'transport', 'food', 'activities', 'shopping', 'health', 'communication', 'other']),
+  category: expenseCategoryEnum,
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(2000).optional(),
+  linkedEventId: z.string().optional(),
+  splits: z.array(z.unknown()).optional(),
+});
+
+const updateExpenseSchema = z.object({
+  title: z.string().min(1).max(300).optional(),
+  amount: z.number().min(0.01).optional(),
+  currency: z.string().length(3).optional(),
+  category: expenseCategoryEnum.optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  notes: z.string().max(2000).optional(),
+  linkedEventId: z.string().nullable().optional(),
   splits: z.array(z.unknown()).optional(),
 });
 
@@ -55,6 +69,13 @@ budgetRouter.post('/expenses', authenticate, validate(createExpenseSchema), asyn
   try {
     const expense = await budgetService.createExpense(req.params.tripId, (req as AuthenticatedRequest).userId, req.body);
     res.status(201).json({ data: expense });
+  } catch (err) { next(err); }
+});
+
+budgetRouter.patch('/expenses/:expenseId', authenticate, validate(updateExpenseSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const expense = await budgetService.updateExpense(req.params.expenseId, req.params.tripId, (req as AuthenticatedRequest).userId, req.body);
+    res.json({ data: expense });
   } catch (err) { next(err); }
 });
 
