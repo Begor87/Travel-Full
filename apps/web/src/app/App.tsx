@@ -14,6 +14,7 @@ const RegisterPage     = lazy(() => import('@/modules/auth/pages/RegisterPage.ts
 const DashboardPage    = lazy(() => import('@/modules/trips/pages/DashboardPage.tsx'));
 const TripsPage        = lazy(() => import('@/modules/trips/pages/TripsPage.tsx'));
 const TripDetailPage   = lazy(() => import('@/modules/trips/pages/TripDetailPage.tsx'));
+const TripOverviewPage = lazy(() => import('@/modules/trips/pages/TripOverviewPage.tsx'));
 const ItineraryPage    = lazy(() => import('@/modules/itinerary/pages/ItineraryPage.tsx'));
 const BudgetPage       = lazy(() => import('@/modules/budget/pages/BudgetPage.tsx'));
 const GlobalBudgetPage = lazy(() => import('@/modules/budget/pages/GlobalBudgetPage.tsx'));
@@ -59,11 +60,13 @@ export function App() {
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/trips" element={<TripsPage />} />
-                  <Route path="/trips/:tripId" element={<TripDetailPage />} />
-                  <Route path="/trips/:tripId/itinerary" element={<ItineraryPage />} />
-                  <Route path="/trips/:tripId/budget" element={<BudgetPage />} />
-                  <Route path="/trips/:tripId/people" element={<CollaboratorsPage />} />
-                  <Route path="/trips/:tripId/ai" element={<AiAssistantPage />} />
+                  <Route path="/trips/:tripId" element={<TripDetailPage />}>
+                    <Route index element={<TripOverviewPage />} />
+                    <Route path="itinerary" element={<ItineraryPage />} />
+                    <Route path="budget" element={<BudgetPage />} />
+                    <Route path="people" element={<CollaboratorsPage />} />
+                    <Route path="ai" element={<AiAssistantPage />} />
+                  </Route>
                   <Route path="/calendar"  element={<CalendarPage />} />
                   <Route path="/budget"    element={<GlobalBudgetPage />} />
                   <Route path="/documents" element={<DocumentsPage />} />

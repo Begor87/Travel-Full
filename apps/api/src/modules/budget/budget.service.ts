@@ -49,7 +49,7 @@ export async function createExpense(
     category: string;
     date: string;
     notes?: string;
-    linkedEventId?: string;
+    linkedEventId?: string | null;
     splits?: unknown[];
   },
 ) {

@@ -78,8 +78,12 @@ export function Sidebar() {
         collapsed ? 'w-[64px]' : 'w-[220px]',
       )}
     >
-      {/* Logo */}
-      <div className={cn('flex items-center gap-2 p-4 border-b border-slate-100 dark:border-slate-800', collapsed && 'justify-center')}>
+      {/* Logo — links home */}
+      <NavLink
+        to="/dashboard"
+        className={cn('flex items-center gap-2 p-4 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors', collapsed && 'justify-center')}
+        title="Home"
+      >
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center flex-shrink-0">
           <Compass className="w-4 h-4 text-white" />
         </div>
@@ -88,7 +92,7 @@ export function Sidebar() {
             Wanderlog
           </span>
         )}
-      </div>
+      </NavLink>
 
       {/* Main nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">

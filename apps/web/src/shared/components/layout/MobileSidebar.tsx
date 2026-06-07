@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { X, Compass, Map, Calendar, Wallet, FileText, Users, Settings } from 'lucide-react';
+import { X, Compass, Map, Calendar, Wallet, FileText, Users, Settings, User } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore.ts';
 import { cn } from '@/shared/utils/cn.ts';
 import { Button } from '../ui/Button.tsx';
@@ -11,6 +11,7 @@ const nav = [
   { to: '/budget', icon: Wallet, label: 'Budget' },
   { to: '/documents', icon: FileText, label: 'Documents' },
   { to: '/people', icon: Users, label: 'People' },
+  { to: '/profile', icon: User, label: 'Profile' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -30,12 +31,16 @@ export function MobileSidebar() {
       {/* Panel */}
       <div className="relative w-72 bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
+          <NavLink
+            to="/dashboard"
+            onClick={() => setMobileSidebarOpen(false)}
+            className="flex items-center gap-2"
+          >
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
               <Compass className="w-4 h-4 text-white" />
             </div>
             <span className="font-bold text-slate-900 dark:text-white">Wanderlog</span>
-          </div>
+          </NavLink>
           <Button variant="ghost" size="icon" onClick={() => setMobileSidebarOpen(false)}>
             <X className="w-5 h-5" />
           </Button>

@@ -22,7 +22,7 @@ const createExpenseSchema = z.object({
   category: expenseCategoryEnum,
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(2000).optional(),
-  linkedEventId: z.string().optional(),
+  linkedEventId: z.string().nullable().optional(),
   splits: z.array(z.unknown()).optional(),
 });
 

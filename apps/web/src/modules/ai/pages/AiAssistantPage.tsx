@@ -67,7 +67,7 @@ export default function AiAssistantPage() {
   ];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] max-h-[700px]">
+    <div className="flex flex-col h-[60vh] min-h-[420px] max-h-[640px]">
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center">
