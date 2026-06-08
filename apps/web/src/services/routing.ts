@@ -84,7 +84,11 @@ function haversine(a: LatLng, b: LatLng): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-export function formatDistance(meters: number): string {
+export function formatDistance(meters: number, unit: 'km' | 'mi' = 'km'): string {
+  if (unit === 'mi') {
+    const feet = meters * 3.28084;
+    return feet < 528 ? `${Math.round(feet)} ft` : `${(meters / 1609.344).toFixed(1)} mi`;
+  }
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 

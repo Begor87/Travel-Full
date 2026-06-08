@@ -3,7 +3,8 @@ import type { ApiResponse } from '@wanderlog/shared';
 
 export interface AdminUser {
   id: string;
-  email: string;
+  username: string | null;
+  email?: string | null;
   name: string;
   avatarUrl?: string | null;
   role: 'USER' | 'ADMIN';

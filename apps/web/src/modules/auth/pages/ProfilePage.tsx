@@ -92,9 +92,15 @@ export default function ProfilePage() {
                 <>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white">{user.name}</h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-1">
-                    <Mail className="w-3.5 h-3.5" />
-                    {user.email}
+                    <UserIcon className="w-3.5 h-3.5" />
+                    @{user.username}
                   </p>
+                  {user.email && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                      <Mail className="w-3.5 h-3.5" />
+                      {user.email}
+                    </p>
+                  )}
                   <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                     Member since {format(new Date(user.createdAt), 'MMMM yyyy')}
                   </p>
@@ -118,9 +124,10 @@ export default function ProfilePage() {
           <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">Account details</h3>
           <div className="space-y-3">
             {[
-              { icon: Mail,     label: 'Email',       value: user.email },
+              { icon: UserIcon, label: 'Username',    value: `@${user.username}` },
+              { icon: Mail,     label: 'Email',       value: user.email || 'Not set' },
               { icon: Calendar, label: 'Timezone',    value: prefs?.timezone ?? 'UTC' },
-              { icon: Map,      label: 'Distance',    value: prefs?.distanceUnit === 'mi' ? 'Miles' : 'Kilometres' },
+              { icon: Map,      label: 'Units',       value: prefs?.distanceUnit === 'mi' ? 'Imperial (mi, °F)' : 'Metric (km, °C)' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
                 <span className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">

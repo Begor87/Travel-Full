@@ -54,10 +54,22 @@ export default function RegisterPage() {
           />
 
           <Input
-            label="Email"
+            label="Username"
+            type="text"
+            placeholder="your_username"
+            error={errors.username?.message}
+            hint="3–30 letters, numbers, or underscores. You'll sign in with this."
+            autoComplete="username"
+            autoCapitalize="none"
+            {...register('username')}
+          />
+
+          <Input
+            label="Email (optional)"
             type="email"
             placeholder="you@example.com"
             error={errors.email?.message}
+            hint="Only needed for email-based password recovery later."
             autoComplete="email"
             {...register('email')}
           />

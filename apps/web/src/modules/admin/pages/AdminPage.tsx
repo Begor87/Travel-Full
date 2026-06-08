@@ -11,11 +11,11 @@ import { Button } from '@/shared/components/ui/Button.tsx';
 import { Badge } from '@/shared/components/ui/Badge.tsx';
 import { Avatar } from '@/shared/components/ui/Avatar.tsx';
 import { Modal } from '@/shared/components/ui/Modal.tsx';
+import { copyToClipboard } from '@/shared/utils/clipboard.ts';
 
 function copy(text: string) {
-  navigator.clipboard?.writeText(text).then(
-    () => toast.success('Copied'),
-    () => toast.error('Could not copy'),
+  copyToClipboard(text).then((ok) =>
+    ok ? toast.success('Copied') : toast.error('Could not copy'),
   );
 }
 
@@ -132,7 +132,7 @@ export default function AdminPage() {
                       {!u.isActive && <Badge variant="red">Blocked</Badge>}
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {u.email} · {u._count.ownedTrips} trips · joined {format(new Date(u.createdAt), 'dd.MM.yyyy')}
+                      @{u.username ?? '—'}{u.email ? ` · ${u.email}` : ''} · {u._count.ownedTrips} trips · joined {format(new Date(u.createdAt), 'dd.MM.yyyy')}
                     </p>
                   </div>
 

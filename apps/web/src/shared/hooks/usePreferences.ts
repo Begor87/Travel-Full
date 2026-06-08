@@ -7,13 +7,14 @@ import type { UserPreferences } from '@wanderlog/shared';
  */
 export const DEFAULT_PREFERENCES: Pick<
   UserPreferences,
-  'currency' | 'dateFormat' | 'timeFormat' | 'weekStartsOn' | 'distanceUnit'
+  'currency' | 'dateFormat' | 'timeFormat' | 'weekStartsOn' | 'distanceUnit' | 'timezone'
 > = {
   currency: 'NOK',
   dateFormat: 'DD.MM.YYYY',
   timeFormat: '24h',
   weekStartsOn: 1, // Monday
   distanceUnit: 'km',
+  timezone: 'Europe/Oslo',
 };
 
 export type ResolvedPreferences = typeof DEFAULT_PREFERENCES;
@@ -28,5 +29,11 @@ export function usePreferences(): ResolvedPreferences {
     timeFormat: prefs.timeFormat || DEFAULT_PREFERENCES.timeFormat,
     weekStartsOn: prefs.weekStartsOn ?? DEFAULT_PREFERENCES.weekStartsOn,
     distanceUnit: prefs.distanceUnit || DEFAULT_PREFERENCES.distanceUnit,
+    timezone: prefs.timezone || DEFAULT_PREFERENCES.timezone,
   };
+}
+
+/** True when the user prefers imperial units (miles, °F). */
+export function isImperial(distanceUnit: string): boolean {
+  return distanceUnit === 'mi';
 }

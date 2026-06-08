@@ -36,12 +36,13 @@ export interface AuthTokens {
 }
 
 export interface LoginInput {
-  email: string;
+  identifier: string; // username or email
   password: string;
 }
 
 export interface RegisterInput {
-  email: string;
+  username: string;
+  email?: string;
   password: string;
   name: string;
   accessCode: string;

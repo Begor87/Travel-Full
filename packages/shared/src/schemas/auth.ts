@@ -1,12 +1,17 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  // Accepts either a username or an email address.
+  identifier: z.string().min(1, 'Enter your username or email'),
+  password: z.string().min(1, 'Enter your password'),
 });
 
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  username: z
+    .string()
+    .regex(/^[a-zA-Z0-9_]{3,30}$/, 'Username: 3–30 letters, numbers, or underscores'),
+  // Email is optional — it's only needed for future email-based password reset.
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')

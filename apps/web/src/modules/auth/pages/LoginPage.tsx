@@ -48,12 +48,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
-              label="Email"
-              type="email"
-              placeholder="you@example.com"
-              error={errors.email?.message}
-              autoComplete="email"
-              {...register('email')}
+              label="Username or email"
+              type="text"
+              placeholder="your_username"
+              error={errors.identifier?.message}
+              autoComplete="username"
+              autoCapitalize="none"
+              {...register('identifier')}
             />
 
             <Input

@@ -52,7 +52,7 @@ export async function getAllCollaborators(userId: string) {
 
   // Deduplicate by userId, attach which trips each person is on
   const peopleMap = new Map<string, {
-    user: { id: string; name: string; email: string; avatarUrl: string | null };
+    user: { id: string; name: string; email: string | null; avatarUrl: string | null };
     trips: { id: string; title: string }[];
     role: string;
   }>();
@@ -125,6 +125,7 @@ export async function getUserById(userId: string) {
     where: { id: userId },
     select: {
       id: true,
+      username: true,
       email: true,
       name: true,
       avatarUrl: true,

@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { geocodeSmart, type LatLng } from '@/services/geocode.ts';
 import { getLeg, formatDistance, formatDuration, type TravelMode, type LegRoute } from '@/services/routing.ts';
 import { formatEventTime } from '@/shared/utils/datetime.ts';
+import { usePreferences } from '@/shared/hooks/usePreferences.ts';
 import type { ItineraryDay, ItineraryEvent } from '@wanderlog/shared';
 
 // Marker hex colours by category — matches the badge palette
@@ -95,6 +96,7 @@ function FitBounds({ points }: { points: LatLng[] }) {
 }
 
 export function DayMap({ days, geocodeContext }: { days: ItineraryDay[]; geocodeContext?: string }) {
+  const { distanceUnit } = usePreferences();
   const dayOptions = days.filter((d) => (d.events ?? []).some((e) => e.location?.name));
   const [selectedDayId, setSelectedDayId] = useState<string>(dayOptions[0]?.id ?? days[0]?.id ?? '');
   const [geoEvents, setGeoEvents] = useState<GeoEvent[]>([]);
@@ -245,7 +247,7 @@ export function DayMap({ days, geocodeContext }: { days: ItineraryDay[]; geocode
                     <span className="text-slate-400">{l.to.index}.</span> {l.to.event.title}
                   </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">
-                    {formatDistance(l.route.distanceMeters)} · {formatDuration(l.route.durationSeconds)}
+                    {formatDistance(l.route.distanceMeters, distanceUnit)} · {formatDuration(l.route.durationSeconds)}
                     {!l.route.routed && <span className="ml-1 italic">(est.)</span>}
                   </p>
                 </div>
@@ -276,7 +278,7 @@ export function DayMap({ days, geocodeContext }: { days: ItineraryDay[]; geocode
           <div className="flex items-center justify-between px-3 py-2 bg-slate-50/60 dark:bg-slate-800/30">
             <span className="text-xs text-slate-500 dark:text-slate-400">{legs.length} leg{legs.length !== 1 ? 's' : ''}</span>
             <span className="text-xs font-medium text-slate-900 dark:text-slate-100">
-              {formatDistance(totals.dist)} · ~{formatDuration(totals.dur)} total
+              {formatDistance(totals.dist, distanceUnit)} · ~{formatDuration(totals.dur)} total
             </span>
           </div>
         </div>

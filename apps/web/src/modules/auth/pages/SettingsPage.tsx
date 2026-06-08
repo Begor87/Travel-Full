@@ -22,6 +22,21 @@ const WEEK_STARTS: { value: 0 | 1 | 6; label: string }[] = [
   { value: 6, label: 'Saturday' },
 ];
 
+// Full IANA timezone list where the browser supports it, with a curated
+// fallback for older engines.
+const TIMEZONES: string[] = (() => {
+  try {
+    const supported = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
+    if (supported) return supported('timeZone');
+  } catch { /* ignore */ }
+  return [
+    'UTC', 'Europe/Oslo', 'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+    'Europe/Rome', 'Europe/Madrid', 'America/New_York', 'America/Chicago',
+    'America/Denver', 'America/Los_Angeles', 'Asia/Tokyo', 'Asia/Singapore',
+    'Asia/Dubai', 'Australia/Sydney',
+  ];
+})();
+
 const THEMES: { value: Theme; label: string; icon: React.ElementType }[] = [
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'dark', label: 'Dark', icon: Moon },
@@ -71,7 +86,9 @@ export default function SettingsPage() {
           </div>
           <div className="space-y-1">
             <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{user?.name}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{user?.email}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              @{user?.username}{user?.email ? ` · ${user.email}` : ''}
+            </p>
           </div>
         </section>
 
@@ -154,10 +171,30 @@ export default function SettingsPage() {
                 {WEEK_STARTS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
               </select>
             </div>
+
+            <div>
+              <label className="label">Units</label>
+              <select
+                className="input"
+                value={prefs.distanceUnit}
+                onChange={(e) => updatePref({ distanceUnit: e.target.value as 'km' | 'mi' })}
+              >
+                <option value="km">Metric (km, °C)</option>
+                <option value="mi">Imperial (mi, °F)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Timezone</label>
+              <select
+                className="input"
+                value={prefs.timezone}
+                onChange={(e) => updatePref({ timezone: e.target.value })}
+              >
+                {TIMEZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+              </select>
+            </div>
           </div>
-          <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-            Distances and temperatures use the metric system (km, °C).
-          </p>
         </section>
 
         {/* Notifications placeholder */}

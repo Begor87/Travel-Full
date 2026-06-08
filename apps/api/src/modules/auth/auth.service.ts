@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import { prisma } from '../../database/prisma.js';
 import {
@@ -20,7 +21,9 @@ function signAccessToken(userId: string, role: string): string {
 
 function signRefreshToken(userId: string): string {
   const options: SignOptions = { expiresIn: (process.env.JWT_REFRESH_EXPIRY ?? '30d') as SignOptions['expiresIn'] };
-  return jwt.sign({ sub: userId, type: 'refresh' }, process.env.JWT_REFRESH_SECRET!, options);
+  // A unique jti guarantees two tokens issued in the same second (e.g. rapid
+  // re-logins) produce distinct JWTs, avoiding a token uniqueness collision.
+  return jwt.sign({ sub: userId, type: 'refresh', jti: randomUUID() }, process.env.JWT_REFRESH_SECRET!, options);
 }
 
 function getRefreshExpiry(): Date {
@@ -37,16 +40,26 @@ export async function register(input: RegisterInput): Promise<AuthTokens> {
     throw new ValidationError('Invalid access code', { accessCode: ['That access code is not valid'] });
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: input.email } });
-  if (existing) {
-    throw new ConflictError('An account with this email already exists');
+  const email = input.email?.trim() || null;
+  const username = input.username.trim();
+
+  const existingName = await prisma.user.findUnique({ where: { username } });
+  if (existingName) {
+    throw new ConflictError('That username is already taken');
+  }
+  if (email) {
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) {
+      throw new ConflictError('An account with this email already exists');
+    }
   }
 
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
   const user = await prisma.user.create({
     data: {
-      email: input.email,
+      username,
+      email,
       name: input.name,
       passwordHash,
       preferences: {
@@ -67,14 +80,18 @@ export async function register(input: RegisterInput): Promise<AuthTokens> {
 }
 
 export async function login(input: LoginInput): Promise<AuthTokens> {
-  const user = await prisma.user.findUnique({ where: { email: input.email } });
+  const identifier = input.identifier.trim();
+  // Match on username or email — users sign in with whichever they have.
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ username: identifier }, { email: identifier }] },
+  });
   if (!user?.passwordHash) {
-    throw new AuthenticationError('Invalid email or password');
+    throw new AuthenticationError('Invalid username or password');
   }
 
   const valid = await bcrypt.compare(input.password, user.passwordHash);
   if (!valid) {
-    throw new AuthenticationError('Invalid email or password');
+    throw new AuthenticationError('Invalid username or password');
   }
 
   if (!user.isActive) {

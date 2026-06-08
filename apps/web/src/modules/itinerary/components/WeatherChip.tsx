@@ -1,5 +1,6 @@
 import { Sun, Cloud, CloudSun, CloudRain, CloudDrizzle, CloudLightning, CloudSnow, CloudFog } from 'lucide-react';
 import { cn } from '@/shared/utils/cn.ts';
+import { usePreferences, isImperial } from '@/shared/hooks/usePreferences.ts';
 import type { DailyForecast } from '@/services/api/weather.ts';
 
 /** Maps an OpenWeatherMap condition to a lucide icon + accent colour. */
@@ -31,8 +32,14 @@ interface WeatherChipProps {
   className?: string;
 }
 
+const toF = (c: number) => Math.round((c * 9) / 5 + 32);
+
 export function WeatherChip({ forecast, className }: WeatherChipProps) {
+  const { distanceUnit } = usePreferences();
+  const imperial = isImperial(distanceUnit);
   const { Icon, color } = weatherVisual(forecast.main, forecast.icon);
+  const hi = imperial ? toF(forecast.tempMax) : forecast.tempMax;
+  const lo = imperial ? toF(forecast.tempMin) : forecast.tempMin;
 
   return (
     <div
@@ -44,8 +51,8 @@ export function WeatherChip({ forecast, className }: WeatherChipProps) {
     >
       <Icon className={cn('w-4 h-4 flex-shrink-0', color)} />
       <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-        {forecast.tempMax}°
-        <span className="text-slate-400 dark:text-slate-500"> / {forecast.tempMin}°</span>
+        {hi}°
+        <span className="text-slate-400 dark:text-slate-500"> / {lo}°</span>
       </span>
     </div>
   );

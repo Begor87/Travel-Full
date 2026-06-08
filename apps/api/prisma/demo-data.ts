@@ -20,6 +20,7 @@ async function main() {
     where: { email: 'sarah@wanderlog.app' },
     update: {},
     create: {
+      username: 'sarah',
       email: 'sarah@wanderlog.app',
       name: 'Sarah Wilson',
       passwordHash: await bcrypt.hash('Demo1234!', 12),

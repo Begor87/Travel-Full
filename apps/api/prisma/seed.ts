@@ -13,6 +13,7 @@ async function main() {
     where: { email: 'demo@wanderlog.app' },
     update: {},
     create: {
+      username: 'demo',
       email: 'demo@wanderlog.app',
       name: 'Alex Demo',
       role: 'ADMIN',
