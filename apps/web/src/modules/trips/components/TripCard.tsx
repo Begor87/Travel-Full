@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
-import { format, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 import { MapPin, Users, Calendar } from 'lucide-react';
 import { cn } from '@/shared/utils/cn.ts';
 import { Badge } from '@/shared/components/ui/Badge.tsx';
+import { usePreferences } from '@/shared/hooks/usePreferences.ts';
+import { formatDateRange } from '@/shared/utils/format.ts';
 import type { Trip } from '@wanderlog/shared';
 
 interface TripCardProps {
@@ -36,6 +38,7 @@ function getCoverGradient(title: string) {
 }
 
 export function TripCard({ trip, compact }: TripCardProps) {
+  const prefs = usePreferences();
   const status = statusConfig[trip.status] ?? { label: trip.status, variant: 'slate' as const };
   const duration = differenceInDays(new Date(trip.endDate), new Date(trip.startDate)) + 1;
   const destinations = trip.destinations ?? [];
@@ -91,9 +94,7 @@ export function TripCard({ trip, compact }: TripCardProps) {
             <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
               <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
               <span>
-                {format(new Date(trip.startDate), 'MMM d')}
-                {' – '}
-                {format(new Date(trip.endDate), 'MMM d, yyyy')}
+                {formatDateRange(trip.startDate, trip.endDate, prefs)}
                 {' '}
                 <span className="text-slate-400 dark:text-slate-500">({duration}d)</span>
               </span>

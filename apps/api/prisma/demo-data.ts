@@ -25,9 +25,9 @@ async function main() {
       passwordHash: await bcrypt.hash('Demo1234!', 12),
       isVerified: true,
       preferences: {
-        theme: 'system', currency: 'EUR', locale: 'en',
-        timezone: 'Europe/Paris', distanceUnit: 'km',
-        dateFormat: 'DD/MM/YYYY', timeFormat: '24h',
+        theme: 'system', currency: 'NOK', locale: 'en',
+        timezone: 'Europe/Oslo', distanceUnit: 'km',
+        dateFormat: 'DD.MM.YYYY', timeFormat: '24h',
         weekStartsOn: 1, defaultTripVisibility: 'private',
       },
     },

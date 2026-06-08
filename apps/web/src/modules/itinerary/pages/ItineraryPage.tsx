@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { Plus, AlertTriangle, Calendar, Clock, MapPin, Pencil, Trash2, Map as MapIcon } from 'lucide-react';
-import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { itineraryApi } from '@/services/api/itinerary.ts';
 import { api } from '@/services/api/client.ts';
@@ -16,6 +15,8 @@ import { WeatherChip } from '../components/WeatherChip.tsx';
 import { weatherApi, type DailyForecast } from '@/services/api/weather.ts';
 import { cn } from '@/shared/utils/cn.ts';
 import { formatTimeRange } from '@/shared/utils/datetime.ts';
+import { usePreferences } from '@/shared/hooks/usePreferences.ts';
+import { formatWeekday, formatDayMonth } from '@/shared/utils/format.ts';
 import { formatMoney, type ItineraryDay, type ItineraryEvent, type CreateEventInput, type ApiResponse } from '@wanderlog/shared';
 
 const EVENT_CATEGORY_COLORS: Record<string, string> = {
@@ -130,13 +131,15 @@ interface DayColumnProps {
 
 function DayColumn({ day, forecast, onAddEvent, onEditEvent, onDeleteEvent }: DayColumnProps) {
   const events = day.events ?? [];
+  const prefs = usePreferences();
 
   return (
     <div className="min-w-[280px] w-[280px] sm:min-w-0 sm:w-auto">
       <div className="flex items-center justify-between mb-3 gap-2">
         <div className="min-w-0">
           <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-            {format(new Date(day.date), 'EEE, MMM d')}
+            {formatWeekday(day.date)}
+            <span className="text-slate-400 dark:text-slate-500 font-normal"> · {formatDayMonth(day.date, prefs)}</span>
           </p>
           {day.title && <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{day.title}</p>}
         </div>
@@ -191,7 +194,8 @@ export default function ItineraryPage() {
     queryFn: () => api.get<ApiResponse<{ currency: string } | null>>(`/trips/${tripId}/budget`),
     enabled: !!tripId,
   });
-  const reportingCurrency = budgetData?.data?.currency ?? 'USD';
+  const prefs = usePreferences();
+  const reportingCurrency = budgetData?.data?.currency ?? prefs.currency;
 
   // Trip destinations give the map geocoding context (e.g. "Paris, France")
   const { data: tripData } = useQuery({

@@ -8,6 +8,9 @@ import { PageLoader } from '@/shared/components/ui/LoadingSpinner.tsx';
 import { EmptyState } from '@/shared/components/ui/EmptyState.tsx';
 import { Badge } from '@/shared/components/ui/Badge.tsx';
 import { cn } from '@/shared/utils/cn.ts';
+import { usePreferences } from '@/shared/hooks/usePreferences.ts';
+import { formatDate, weekNumber, formatWeekday } from '@/shared/utils/format.ts';
+import { formatTimeRange } from '@/shared/utils/datetime.ts';
 import type { ApiResponse } from '@wanderlog/shared';
 
 interface UpcomingEvent {
@@ -38,6 +41,7 @@ function dayLabel(dateStr: string): string {
 }
 
 export default function CalendarPage() {
+  const prefs = usePreferences();
   const { data, isLoading } = useQuery({
     queryKey: ['upcoming-events'],
     queryFn: () => api.get<ApiResponse<UpcomingEvent[]>>('/users/me/upcoming'),
@@ -45,12 +49,21 @@ export default function CalendarPage() {
 
   const events = data?.data ?? [];
 
-  // Group by date
+  // Group by date, then collect consecutive dates into ISO weeks
   const grouped = events.reduce<Record<string, UpcomingEvent[]>>((acc, e) => {
     const key = e.day.date.slice(0, 10);
     (acc[key] ??= []).push(e);
     return acc;
   }, {});
+
+  const dateEntries = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+  const weeks: { week: number; days: [string, UpcomingEvent[]][] }[] = [];
+  for (const entry of dateEntries) {
+    const w = weekNumber(entry[0]);
+    const last = weeks[weeks.length - 1];
+    if (last && last.week === w) last.days.push(entry);
+    else weeks.push({ week: w, days: [entry] });
+  }
 
   if (isLoading) return <PageLoader />;
 
@@ -75,7 +88,18 @@ export default function CalendarPage() {
           />
         ) : (
           <div className="space-y-8">
-            {Object.entries(grouped).map(([date, dayEvents]) => (
+            {weeks.map(({ week, days }) => (
+              <section key={week}>
+                {/* Week header */}
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-semibold">
+                    Week {week}
+                  </span>
+                  <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
+                </div>
+
+                <div className="space-y-8">
+                  {days.map(([date, dayEvents]) => (
               <div key={date}>
                 {/* Day header */}
                 <div className="flex items-center gap-3 mb-3">
@@ -97,7 +121,7 @@ export default function CalendarPage() {
                       {dayLabel(date)}
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {format(parseISO(date), 'EEEE, MMMM d, yyyy')}
+                      {formatWeekday(date)} · {formatDate(date, prefs)}
                     </p>
                   </div>
                 </div>
@@ -128,8 +152,7 @@ export default function CalendarPage() {
                             {event.startTime && (
                               <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                                 <Clock className="w-3 h-3" />
-                                {format(parseISO(event.startTime), 'HH:mm')}
-                                {event.endTime && ` – ${format(parseISO(event.endTime), 'HH:mm')}`}
+                                {formatTimeRange(event.startTime, event.endTime)}
                               </span>
                             )}
                             {event.locationName && (
@@ -145,6 +168,9 @@ export default function CalendarPage() {
                   })}
                 </div>
               </div>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}

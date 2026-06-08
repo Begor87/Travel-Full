@@ -7,11 +7,12 @@ interface BudgetSettingsFormProps {
   onSubmit: (data: { totalAmount: number; currency: string }) => void;
   isSubmitting: boolean;
   initial?: { totalAmount: number; currency: string } | null;
+  defaultCurrency?: string;
 }
 
-export function BudgetSettingsForm({ onSubmit, isSubmitting, initial }: BudgetSettingsFormProps) {
+export function BudgetSettingsForm({ onSubmit, isSubmitting, initial, defaultCurrency = 'USD' }: BudgetSettingsFormProps) {
   const [totalAmount, setTotalAmount] = useState(initial?.totalAmount != null ? String(initial.totalAmount) : '');
-  const [currency, setCurrency] = useState(initial?.currency ?? 'USD');
+  const [currency, setCurrency] = useState(initial?.currency ?? defaultCurrency);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

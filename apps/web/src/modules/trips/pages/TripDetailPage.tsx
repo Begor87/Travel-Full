@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, NavLink, Outlet } from 'react-router-dom';
 import { MapPin, Calendar, Sparkles, ArrowLeft } from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { differenceInDays } from 'date-fns';
+import { usePreferences } from '@/shared/hooks/usePreferences.ts';
+import { formatDateRange } from '@/shared/utils/format.ts';
 import { tripsApi } from '@/services/api/trips.ts';
 import { TopBar } from '@/shared/components/layout/TopBar.tsx';
 import { PageLoader } from '@/shared/components/ui/LoadingSpinner.tsx';
@@ -33,6 +35,7 @@ const NAV_TABS = [
 
 export default function TripDetailPage() {
   const { tripId } = useParams<{ tripId: string }>();
+  const prefs = usePreferences();
 
   const { data, isLoading } = useQuery({
     queryKey: ['trips', tripId],
@@ -85,7 +88,7 @@ export default function TripDetailPage() {
                 )}
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5" />
-                  {format(new Date(trip.startDate), 'MMM d')} – {format(new Date(trip.endDate), 'MMM d, yyyy')} · {duration}d
+                  {formatDateRange(trip.startDate, trip.endDate, prefs)} · {duration}d
                 </span>
               </div>
             </div>

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Wallet, ArrowRight, MapPin } from 'lucide-react';
-import { format } from 'date-fns';
+import { usePreferences } from '@/shared/hooks/usePreferences.ts';
+import { formatDateRange } from '@/shared/utils/format.ts';
 import { api } from '@/services/api/client.ts';
 import { TopBar } from '@/shared/components/layout/TopBar.tsx';
 import { PageLoader } from '@/shared/components/ui/LoadingSpinner.tsx';
@@ -42,6 +43,7 @@ function SpendBar({ spent, total }: { spent: number; total: number }) {
 }
 
 export default function GlobalBudgetPage() {
+  const prefs = usePreferences();
   const { data, isLoading } = useQuery({
     queryKey: ['all-budgets'],
     queryFn: () => api.get<ApiResponse<TripBudget[]>>('/users/me/budgets'),
@@ -90,7 +92,7 @@ export default function GlobalBudgetPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {trips.map((trip) => {
                 const hasBudget = !!trip.budget;
-                const currency = trip.budget?.currency ?? 'USD';
+                const currency = trip.budget?.currency ?? prefs.currency;
                 const total = trip.budget?.totalAmount ?? 0;
                 const spent = trip.totalSpent;
 
@@ -111,7 +113,7 @@ export default function GlobalBudgetPage() {
                     </div>
 
                     <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                      {format(new Date(trip.startDate), 'MMM d')} – {format(new Date(trip.endDate), 'MMM d, yyyy')}
+                      {formatDateRange(trip.startDate, trip.endDate, prefs)}
                     </p>
 
                     {hasBudget ? (

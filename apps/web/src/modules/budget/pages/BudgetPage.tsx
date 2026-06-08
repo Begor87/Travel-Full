@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { Plus, Wallet, Pencil, Trash2, Settings2, Link2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { usePreferences } from '@/shared/hooks/usePreferences.ts';
+import { formatDayMonth } from '@/shared/utils/format.ts';
 import toast from 'react-hot-toast';
 import { api } from '@/services/api/client.ts';
 import { itineraryApi } from '@/services/api/itinerary.ts';
@@ -52,6 +53,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function BudgetPage() {
   const { tripId } = useParams<{ tripId: string }>();
+  const prefs = usePreferences();
   const queryClient = useQueryClient();
   const [expenseModal, setExpenseModal] = useState<{ open: boolean; editing?: Expense }>({ open: false });
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -128,7 +130,7 @@ export default function BudgetPage() {
 
   const summary = summaryData?.data;
   const expenses = expensesData?.data ?? [];
-  const currency = summary?.currency ?? 'USD';
+  const currency = summary?.currency ?? prefs.currency;
   const hasBudget = !!budgetData?.data;
 
   const spentPercent = summary && summary.totalBudget > 0
@@ -256,7 +258,7 @@ export default function BudgetPage() {
                       <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{expense.title}</p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {CATEGORY_LABELS[expense.category.toLowerCase()] ?? expense.category} · {format(new Date(expense.date), 'MMM d')} · {expense.paidBy.name}
+                          {CATEGORY_LABELS[expense.category.toLowerCase()] ?? expense.category} · {formatDayMonth(expense.date, prefs)} · {expense.paidBy.name}
                         </span>
                         {linkedTitle && (
                           <span className="inline-flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400">
@@ -301,6 +303,7 @@ export default function BudgetPage() {
       <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Budget settings">
         <BudgetSettingsForm
           initial={budgetData?.data ?? null}
+          defaultCurrency={prefs.currency}
           isSubmitting={saveBudgetMutation.isPending}
           onSubmit={(data) => saveBudgetMutation.mutate(data)}
         />
