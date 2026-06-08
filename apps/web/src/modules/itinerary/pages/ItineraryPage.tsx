@@ -12,6 +12,7 @@ import { EmptyState } from '@/shared/components/ui/EmptyState.tsx';
 import { EventForm } from '../components/EventForm.tsx';
 import { DayMap } from '../components/DayMap.tsx';
 import { WeatherChip } from '../components/WeatherChip.tsx';
+import { WeatherDetailModal } from '../components/WeatherDetailModal.tsx';
 import { weatherApi, type DailyForecast } from '@/services/api/weather.ts';
 import { cn } from '@/shared/utils/cn.ts';
 import { formatTimeRange } from '@/shared/utils/datetime.ts';
@@ -127,9 +128,10 @@ interface DayColumnProps {
   onAddEvent: (dayId: string) => void;
   onEditEvent: (event: ItineraryEvent) => void;
   onDeleteEvent: (eventId: string) => void;
+  onWeatherClick: (date: string) => void;
 }
 
-function DayColumn({ day, forecast, onAddEvent, onEditEvent, onDeleteEvent }: DayColumnProps) {
+function DayColumn({ day, forecast, onAddEvent, onEditEvent, onDeleteEvent, onWeatherClick }: DayColumnProps) {
   const events = day.events ?? [];
   const prefs = usePreferences();
 
@@ -144,7 +146,7 @@ function DayColumn({ day, forecast, onAddEvent, onEditEvent, onDeleteEvent }: Da
           {day.title && <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{day.title}</p>}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          {forecast && <WeatherChip forecast={forecast} />}
+          {forecast && <WeatherChip forecast={forecast} onClick={() => onWeatherClick(day.date.slice(0, 10))} />}
           <Button variant="ghost" size="icon" onClick={() => onAddEvent(day.id)} title="Add event">
             <Plus className="w-4 h-4" />
           </Button>
@@ -175,6 +177,7 @@ export default function ItineraryPage() {
   const [addingToDayId, setAddingToDayId] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<ItineraryEvent | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [weatherDay, setWeatherDay] = useState<string | null>(null);
 
   const { data: itineraryData, isLoading } = useQuery({
     queryKey: ['itinerary', tripId],
@@ -303,6 +306,7 @@ export default function ItineraryPage() {
                 onAddEvent={(dayId) => setAddingToDayId(dayId)}
                 onEditEvent={(event) => setEditingEvent(event)}
                 onDeleteEvent={(eventId) => deleteEventMutation.mutate(eventId)}
+                onWeatherClick={(date) => setWeatherDay(date)}
               />
             ))}
           </div>
@@ -331,6 +335,9 @@ export default function ItineraryPage() {
           />
         )}
       </Modal>
+
+      {/* Weather detail popup */}
+      <WeatherDetailModal tripId={tripId!} date={weatherDay} onClose={() => setWeatherDay(null)} />
     </div>
   );
 }

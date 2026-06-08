@@ -21,3 +21,21 @@ weatherRouter.get(
     }
   },
 );
+
+// GET /trips/:tripId/weather/day/:date  (YYYY-MM-DD) — detail for the popup
+weatherRouter.get(
+  '/day/:date',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const detail = await weatherService.getDayDetail(
+        req.params.tripId,
+        (req as AuthenticatedRequest).userId,
+        req.params.date,
+      );
+      res.json({ data: detail });
+    } catch (err) {
+      next(err);
+    }
+  },
+);

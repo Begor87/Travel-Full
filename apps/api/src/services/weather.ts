@@ -10,6 +10,22 @@ export interface DailyForecast {
   /** True when this is a climatological estimate (far-future), not a real
    *  forecast — temperature only, no conditions. */
   isEstimate: boolean;
+  /** Human-readable place this forecast is for (set per-day by the trip layer). */
+  location?: string;
+}
+
+export interface TimeSlice {
+  ts: number;          // unix seconds
+  temp: number;
+  main: string;
+  description: string;
+  icon: string;
+}
+
+export interface DayDetail {
+  date: string;
+  granularity: 'hourly' | '3-hourly' | 'daily';
+  slices: TimeSlice[];
 }
 
 export interface ForecastResult {
@@ -175,4 +191,61 @@ export async function getForecast(
   };
   cache.set(key, { result, fetchedAt: Date.now() });
   return result;
+}
+
+/**
+ * Fine-grained slices for a single day, adapting to how far away it is:
+ *  - within ~2 days: true hourly (One Call hourly timeline)
+ *  - within 5 days: 3-hourly (free 5-day forecast)
+ *  - further out: returns null (only the daily estimate is available)
+ */
+export async function getDaySlices(lat: number, lng: number, date: string): Promise<DayDetail | null> {
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+  if (!apiKey) return null;
+
+  const dayStart = new Date(`${date}T00:00:00Z`).getTime();
+  const dayEnd = dayStart + DAY;
+  const daysAway = (dayStart - Date.now()) / DAY;
+  if (daysAway > 5.5) return null; // too far for any sub-daily detail
+
+  // True hourly only when the whole day fits inside the ~48h hourly window,
+  // otherwise we'd get a partial early-morning sliver. Beyond that, 3-hourly
+  // (which covers the full day) reads better.
+  const dayFitsHourly = dayEnd - Date.now() <= 47 * 60 * 60 * 1000;
+  if (dayFitsHourly) {
+    try {
+      const start = Math.floor(dayStart / 1000);
+      const end = Math.floor(dayEnd / 1000);
+      const url = `https://api.openweathermap.org/data/4.0/onecall/timeline/1h?lat=${lat}&lon=${lng}&units=metric&start=${start}&end=${end}&appid=${apiKey}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const body = (await res.json()) as { data?: Array<{ dt: number; temp: number; weather: Array<{ main: string; description: string; icon: string }> }> };
+        const slices = (body.data ?? [])
+          .filter((h) => h.dt * 1000 >= dayStart && h.dt * 1000 < dayEnd)
+          .map((h) => ({ ts: h.dt, temp: Math.round(h.temp), main: h.weather[0]?.main ?? '', description: h.weather[0]?.description ?? '', icon: h.weather[0]?.icon ?? '' }));
+        if (slices.length) return { date, granularity: 'hourly', slices };
+      }
+    } catch { /* fall through to 3-hourly */ }
+  }
+
+  // 3-hourly from the free 5-day forecast
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&units=metric&appid=${apiKey}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const body = (await res.json()) as OwmForecastResponse & { list: Array<{ dt: number } & OwmForecastResponse['list'][number]> };
+      const slices = (body.list ?? [])
+        .filter((e) => { const t = new Date(e.dt_txt + 'Z').getTime(); return t >= dayStart && t < dayEnd; })
+        .map((e) => ({
+          ts: Math.floor(new Date(e.dt_txt + 'Z').getTime() / 1000),
+          temp: Math.round((e.main.temp_min + e.main.temp_max) / 2),
+          main: e.weather[0]?.main ?? '',
+          description: e.weather[0]?.description ?? '',
+          icon: e.weather[0]?.icon ?? '',
+        }));
+      if (slices.length) return { date, granularity: '3-hourly', slices };
+    }
+  } catch { /* nothing */ }
+
+  return null;
 }

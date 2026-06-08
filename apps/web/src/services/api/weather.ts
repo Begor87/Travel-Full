@@ -9,15 +9,34 @@ export interface DailyForecast {
   description: string;
   icon: string;
   isEstimate: boolean;
+  location?: string;
 }
 
 export interface ForecastResult {
-  location: string;
   units: 'metric';
   days: Record<string, DailyForecast>;
+}
+
+export interface TimeSlice {
+  ts: number;
+  temp: number;
+  main: string;
+  description: string;
+  icon: string;
+}
+
+export interface DayDetail {
+  date: string;
+  location: string;
+  granularity: 'hourly' | '3-hourly' | 'daily';
+  slices: TimeSlice[];
+  daily: DailyForecast | null;
 }
 
 export const weatherApi = {
   getTripWeather: (tripId: string) =>
     api.get<ApiResponse<ForecastResult | null>>(`/trips/${tripId}/weather`),
+
+  getDayDetail: (tripId: string, date: string) =>
+    api.get<ApiResponse<DayDetail | null>>(`/trips/${tripId}/weather/day/${date}`),
 };
