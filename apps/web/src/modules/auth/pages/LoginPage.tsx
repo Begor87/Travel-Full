@@ -1,18 +1,21 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Compass } from 'lucide-react';
+import { Compass, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { loginSchema, type LoginInput } from '@wanderlog/shared';
 import { authApi } from '@/services/api/auth.ts';
 import { useAuthStore } from '@/store/authStore.ts';
 import { Button } from '@/shared/components/ui/Button.tsx';
 import { Input } from '@/shared/components/ui/Input.tsx';
+import { Modal } from '@/shared/components/ui/Modal.tsx';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setTokens } = useAuthStore();
+  const [forgotOpen, setForgotOpen] = useState(false);
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/dashboard';
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginInput>({
@@ -57,14 +60,23 @@ export default function LoginPage() {
               {...register('identifier')}
             />
 
-            <Input
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              error={errors.password?.message}
-              autoComplete="current-password"
-              {...register('password')}
-            />
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                error={errors.password?.message}
+                autoComplete="current-password"
+                {...register('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="mt-1.5 text-xs text-brand-600 dark:text-brand-400 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
 
             <Button
               type="submit"
@@ -108,6 +120,26 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* Forgot password — admin-initiated reset (no email reset yet) */}
+      <Modal open={forgotOpen} onClose={() => setForgotOpen(false)} title="Reset your password">
+        <div className="space-y-3">
+          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-900/30 mx-auto">
+            <KeyRound className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 text-center">
+            Password resets are handled by your administrator.
+          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Contact the person who runs this Wanderlog and ask them to reset your password.
+            They can issue you a <strong>temporary password</strong> from the admin panel — sign in
+            with it, then set a new one under <strong>Settings → Security</strong>.
+          </p>
+          <div className="flex justify-end pt-2">
+            <Button variant="primary" onClick={() => setForgotOpen(false)}>Got it</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

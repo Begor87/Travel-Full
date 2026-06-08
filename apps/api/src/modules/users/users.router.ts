@@ -21,6 +21,8 @@ export const usersRouter = Router();
 const updateProfileSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   avatarUrl: z.string().url().optional().nullable(),
+  // Email is optional now — allow setting a valid address or clearing it ('').
+  email: z.string().email('Invalid email address').or(z.literal('')).optional(),
 });
 
 const updatePreferencesSchema = z.record(z.unknown());

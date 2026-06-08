@@ -84,12 +84,11 @@ export default function SettingsPage() {
             <User className="w-5 h-5 text-slate-500" />
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Profile</h2>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 mb-4">
             <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{user?.name}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              @{user?.username}{user?.email ? ` · ${user.email}` : ''}
-            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">@{user?.username}</p>
           </div>
+          <EmailEditor />
         </section>
 
         {/* Appearance */}
@@ -309,5 +308,46 @@ function SecuritySection() {
         </Button>
       </div>
     </section>
+  );
+}
+
+function EmailEditor() {
+  const { user, setUser } = useAuthStore();
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [saving, setSaving] = useState(false);
+  const dirty = email !== (user?.email ?? '');
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { data } = await api.patch<{ data: UserType }>('/users/me', { email });
+      setUser({ ...user, email: (data as unknown as { email?: string }).email ?? '' } as UserType);
+      toast.success('Email updated');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update email');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={save} className="space-y-2 max-w-sm">
+      <Input
+        label="Email"
+        type="email"
+        placeholder="you@example.com (optional)"
+        autoComplete="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        hint="Optional — used for email-based password recovery once that's enabled."
+      />
+      {dirty && (
+        <Button type="submit" variant="primary" size="sm" loading={saving}>
+          Save email
+        </Button>
+      )}
+    </form>
   );
 }

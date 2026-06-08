@@ -1,5 +1,5 @@
 import { prisma, Prisma } from '../../database/prisma.js';
-import { NotFoundError } from '../../shared/errors/AppError.js';
+import { NotFoundError, ConflictError } from '../../shared/errors/AppError.js';
 
 export async function getUpcomingEvents(userId: string) {
   const now = new Date();
@@ -147,13 +147,31 @@ export async function getUserById(userId: string) {
 
 export async function updateUserProfile(
   userId: string,
-  data: { name?: string; avatarUrl?: string },
+  data: { name?: string; avatarUrl?: string | null; email?: string },
 ) {
+  // Email: '' clears it (set null); a value must be unique to this user.
+  let email: string | null | undefined;
+  if (data.email !== undefined) {
+    email = data.email.trim() || null;
+    if (email) {
+      const taken = await prisma.user.findFirst({
+        where: { email, NOT: { id: userId } },
+        select: { id: true },
+      });
+      if (taken) throw new ConflictError('That email is already in use');
+    }
+  }
+
   return prisma.user.update({
     where: { id: userId },
-    data,
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.avatarUrl !== undefined && { avatarUrl: data.avatarUrl }),
+      ...(email !== undefined && { email }),
+    },
     select: {
       id: true,
+      username: true,
       email: true,
       name: true,
       avatarUrl: true,
