@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { X, Compass, Map, Calendar, Wallet, FileText, Users, Settings, User } from 'lucide-react';
+import { X, Compass, Map, Calendar, Wallet, FileText, Users, Settings, User, ShieldCheck } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore.ts';
+import { useAuthStore } from '@/store/authStore.ts';
 import { cn } from '@/shared/utils/cn.ts';
 import { Button } from '../ui/Button.tsx';
 
-const nav = [
+const baseNav = [
   { to: '/dashboard', icon: Compass, label: 'Dashboard' },
   { to: '/trips', icon: Map, label: 'My Trips' },
   { to: '/calendar', icon: Calendar, label: 'Calendar' },
@@ -17,6 +18,9 @@ const nav = [
 
 export function MobileSidebar() {
   const { isMobileSidebarOpen, setMobileSidebarOpen } = useUiStore();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = !!user && (user.role === 'admin' || (user.role as string) === 'ADMIN');
+  const nav = isAdmin ? [...baseNav, { to: '/admin', icon: ShieldCheck, label: 'Admin' }] : baseNav;
 
   if (!isMobileSidebarOpen) return null;
 

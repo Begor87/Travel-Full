@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Sun, Moon, Monitor, User, Bell, Shield, Globe } from 'lucide-react';
+import { LogOut, Sun, Moon, Monitor, User, Bell, Shield, Globe, LogOut as LogOutAll } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore.ts';
 import { useUiStore } from '@/store/uiStore.ts';
 import { authApi } from '@/services/api/auth.ts';
 import { api } from '@/services/api/client.ts';
 import { Button } from '@/shared/components/ui/Button.tsx';
+import { Input } from '@/shared/components/ui/Input.tsx';
 import { TopBar } from '@/shared/components/layout/TopBar.tsx';
 import { cn } from '@/shared/utils/cn.ts';
 import { usePreferences } from '@/shared/hooks/usePreferences.ts';
@@ -169,19 +171,8 @@ export default function SettingsPage() {
           </p>
         </section>
 
-        {/* Security placeholder */}
-        <section className="card p-6 mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-5 h-5 text-slate-500" />
-            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Security</h2>
-          </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-            Change password and manage active sessions.
-          </p>
-          <Button variant="outline" size="sm" disabled>
-            Change password
-          </Button>
-        </section>
+        {/* Security */}
+        <SecuritySection />
 
         {/* Sign out */}
         <section className="card p-6">
@@ -191,5 +182,95 @@ export default function SettingsPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+function SecuritySection() {
+  const navigate = useNavigate();
+  const { logout } = useAuthStore();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (next !== confirm) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    setSaving(true);
+    try {
+      await authApi.changePassword(current, next);
+      toast.success('Password changed — signing you out…');
+      // Changing the password revokes all sessions, so log back in fresh.
+      logout();
+      navigate('/login', { replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change password');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const signOutEverywhere = async () => {
+    try {
+      await authApi.logoutAll();
+    } catch {
+      /* best effort */
+    }
+    logout();
+    navigate('/login', { replace: true });
+    toast.success('Signed out of all devices');
+  };
+
+  return (
+    <section className="card p-6 mb-6">
+      <div className="flex items-center gap-3 mb-4">
+        <Shield className="w-5 h-5 text-slate-500" />
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Security</h2>
+      </div>
+
+      <form onSubmit={submit} className="space-y-3 max-w-sm">
+        <Input
+          label="Current password"
+          type="password"
+          autoComplete="current-password"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+          required
+        />
+        <Input
+          label="New password"
+          type="password"
+          autoComplete="new-password"
+          hint="At least 8 characters, with an uppercase letter and a number"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+          required
+        />
+        <Input
+          label="Confirm new password"
+          type="password"
+          autoComplete="new-password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          required
+        />
+        <Button type="submit" variant="primary" size="sm" loading={saving}>
+          Change password
+        </Button>
+      </form>
+
+      <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Active sessions</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          Sign out of every device, including this one. Useful if you suspect someone else has access.
+        </p>
+        <Button variant="outline" size="sm" leftIcon={<LogOutAll className="w-4 h-4" />} onClick={signOutEverywhere}>
+          Sign out everywhere
+        </Button>
+      </div>
+    </section>
   );
 }

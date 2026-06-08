@@ -44,6 +44,7 @@ export interface RegisterInput {
   email: string;
   password: string;
   name: string;
+  accessCode: string;
 }
 
 export interface RefreshTokenInput {

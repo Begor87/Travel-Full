@@ -14,4 +14,9 @@ export const authApi = {
 
   refresh: (refreshToken: string) =>
     api.post<ApiResponse<AuthTokens>>('/auth/refresh', { refreshToken }, { skipAuth: true }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post<void>('/auth/change-password', { currentPassword, newPassword }),
+
+  logoutAll: () => api.post<void>('/auth/logout-all'),
 };

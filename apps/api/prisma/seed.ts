@@ -15,6 +15,7 @@ async function main() {
     create: {
       email: 'demo@wanderlog.app',
       name: 'Alex Demo',
+      role: 'ADMIN',
       passwordHash,
       isVerified: true,
       preferences: {
@@ -110,9 +111,18 @@ async function main() {
     },
   });
 
+  // Signup access code — required to register a new account
+  const existingCode = await prisma.appSetting.findUnique({ where: { key: 'signup_access_code' } });
+  if (!existingCode) {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const code = Array.from({ length: 8 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
+    await prisma.appSetting.create({ data: { key: 'signup_access_code', value: code } });
+    console.log(`Signup access code: ${code}`);
+  }
+
   console.log('Seed complete!');
   console.log('');
-  console.log('Demo credentials:');
+  console.log('Demo credentials (ADMIN):');
   console.log('  Email:    demo@wanderlog.app');
   console.log('  Password: Demo1234!');
 }

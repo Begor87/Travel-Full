@@ -11,6 +11,7 @@ import {
   Wifi,
   WifiOff,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/shared/utils/cn.ts';
 import { useUiStore } from '@/store/uiStore.ts';
@@ -142,6 +143,24 @@ export function Sidebar() {
           {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
           {!collapsed && <span>{isOnline ? 'Online' : 'Offline'}</span>}
         </div>
+
+        {user && (user.role === 'admin' || (user.role as string) === 'ADMIN') && (
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium',
+                'transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-800',
+                isActive ? 'text-brand-700 dark:text-brand-400' : 'text-slate-600 dark:text-slate-400',
+                collapsed && 'justify-center px-2',
+              )
+            }
+            title={collapsed ? 'Admin' : undefined}
+          >
+            <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>Admin</span>}
+          </NavLink>
+        )}
 
         <NavLink
           to="/settings"

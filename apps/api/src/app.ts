@@ -19,6 +19,7 @@ import { collaborationRouter } from './modules/collaboration/collaboration.route
 import { budgetRouter } from './modules/budget/budget.router.js';
 import { aiRouter } from './modules/ai/ai.router.js';
 import { weatherRouter } from './modules/weather/weather.router.js';
+import { adminRouter } from './modules/admin/admin.router.js';
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api', limiter);
 const API = '/api/v1';
 
 app.use(`${API}/auth`, authRouter);
+app.use(`${API}/admin`, adminRouter);
 app.use(`${API}/users`, usersRouter);
 app.use(`${API}/trips`, tripsRouter);
 app.use(`${API}/trips/:tripId/itinerary`, itineraryRouter);

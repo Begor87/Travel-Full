@@ -72,6 +72,16 @@ export default function RegisterPage() {
             {...register('password')}
           />
 
+          <Input
+            label="Access code"
+            type="text"
+            placeholder="Invite code from your host"
+            error={errors.accessCode?.message}
+            hint="Registration is invite-only — ask your administrator for the code."
+            autoCapitalize="characters"
+            {...register('accessCode')}
+          />
+
           <Button
             type="submit"
             variant="primary"

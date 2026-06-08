@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AppLayout } from '@/shared/components/layout/AppLayout.tsx';
 import { AuthGuard } from './AuthGuard.tsx';
+import { AdminGuard } from './AdminGuard.tsx';
 import { OnlineStatusProvider } from './OnlineStatusProvider.tsx';
 
 // Pages — lazy loaded for code splitting
@@ -25,6 +26,7 @@ const DocumentsPage    = lazy(() => import('@/modules/documents/pages/DocumentsP
 const PeoplePage       = lazy(() => import('@/modules/people/pages/PeoplePage.tsx'));
 const ProfilePage      = lazy(() => import('@/modules/auth/pages/ProfilePage.tsx'));
 const SettingsPage     = lazy(() => import('@/modules/auth/pages/SettingsPage.tsx'));
+const AdminPage        = lazy(() => import('@/modules/admin/pages/AdminPage.tsx'));
 const NotFoundPage     = lazy(() => import('./NotFoundPage.tsx'));
 
 const queryClient = new QueryClient({
@@ -73,6 +75,9 @@ export function App() {
                   <Route path="/people"    element={<PeoplePage />} />
                   <Route path="/profile"   element={<ProfilePage />} />
                   <Route path="/settings"  element={<SettingsPage />} />
+                  <Route element={<AdminGuard />}>
+                    <Route path="/admin" element={<AdminPage />} />
+                  </Route>
                 </Route>
               </Route>
 

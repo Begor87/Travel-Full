@@ -3,9 +3,12 @@ import jwt, { type SignOptions } from 'jsonwebtoken';
 import { prisma } from '../../database/prisma.js';
 import {
   AuthenticationError,
+  AuthorizationError,
   ConflictError,
   NotFoundError,
+  ValidationError,
 } from '../../shared/errors/AppError.js';
+import { isValidSignupCode } from '../admin/admin.service.js';
 import type { RegisterInput, LoginInput, AuthTokens } from '@wanderlog/shared';
 
 const SALT_ROUNDS = 12;
@@ -28,6 +31,12 @@ function getRefreshExpiry(): Date {
 }
 
 export async function register(input: RegisterInput): Promise<AuthTokens> {
+  // Registration is gated by a shared access code that an admin can rotate.
+  const codeOk = await isValidSignupCode(input.accessCode);
+  if (!codeOk) {
+    throw new ValidationError('Invalid access code', { accessCode: ['That access code is not valid'] });
+  }
+
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) {
     throw new ConflictError('An account with this email already exists');
@@ -68,6 +77,10 @@ export async function login(input: LoginInput): Promise<AuthTokens> {
     throw new AuthenticationError('Invalid email or password');
   }
 
+  if (!user.isActive) {
+    throw new AuthorizationError('This account has been disabled. Contact an administrator.');
+  }
+
   return issueTokens(user.id, user.role);
 }
 
@@ -92,6 +105,10 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
     throw new AuthenticationError('Refresh token is no longer valid');
   }
 
+  if (!stored.user.isActive) {
+    throw new AuthorizationError('This account has been disabled.');
+  }
+
   // Rotate the refresh token
   await prisma.refreshToken.update({
     where: { id: stored.id },
@@ -106,6 +123,36 @@ export async function logout(refreshToken: string): Promise<void> {
     where: { token: refreshToken },
     data: { revokedAt: new Date() },
   });
+}
+
+/** Revokes every active session for a user ("sign out everywhere"). */
+export async function logoutAll(userId: string): Promise<void> {
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}
+
+/** Self-service password change: verifies the current password before setting
+ *  a new one, then revokes all other sessions. */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.passwordHash) throw new NotFoundError('User');
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) {
+    throw new ValidationError('Current password is incorrect', {
+      currentPassword: ['Current password is incorrect'],
+    });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  await logoutAll(userId);
 }
 
 async function issueTokens(userId: string, role: string): Promise<AuthTokens> {

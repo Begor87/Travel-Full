@@ -17,6 +17,7 @@ model User {
   passwordHash String?
   role        UserRole @default(USER)
   isVerified  Boolean  @default(false)
+  isActive    Boolean  @default(true)
   preferences Json     @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -45,6 +46,14 @@ model OAuthAccount {
 
   @@unique([provider, providerId])
   @@index([userId])
+}
+
+// Generic singleton-style key/value config. Used for the regenerable signup
+// access code (key "signup_access_code") and any future app-wide settings.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }
 
 model RefreshToken {
