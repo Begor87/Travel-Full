@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Footprints, Bike, Car, TrainFront, Plane, Ship, Loader2 } from 'lucide-react';
+import { Footprints, Bike, Car, TrainFront, Plane, Ship, Loader2, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { geocodeSmart, type LatLng } from '@/services/geocode.ts';
 import { getLeg, formatDistance, formatDuration, type TravelMode, type LegRoute } from '@/services/routing.ts';
@@ -44,6 +44,24 @@ function inferMode(category: string): TravelMode {
     case 'car': return 'drive';
     default: return 'walk';
   }
+}
+
+// Maps an app travel mode to Google Maps' travelmode parameter.
+function googleTravelMode(mode: TravelMode): string {
+  if (mode === 'walk') return 'walking';
+  if (mode === 'cycle') return 'bicycling';
+  if (mode === 'drive') return 'driving';
+  return 'transit'; // transit / flight / ferry → Google transit
+}
+
+/** A universal Google Maps directions deep link (no API key, free, worldwide).
+ *  Opens the native Maps app on mobile. Omitting origin lets Google use the
+ *  user's current location — handy for "how do I get here right now". */
+function googleDirUrl(to: LatLng, mode: TravelMode, from?: LatLng): string {
+  const base = 'https://www.google.com/maps/dir/?api=1';
+  const dest = `&destination=${to.lat},${to.lng}`;
+  const origin = from ? `&origin=${from.lat},${from.lng}` : '';
+  return `${base}${origin}${dest}&travelmode=${googleTravelMode(mode)}`;
 }
 
 function pinIcon(color: string, label: string): L.DivIcon {
@@ -180,6 +198,14 @@ export function DayMap({ days, geocodeContext }: { days: ItineraryDay[]; geocode
                     <p className="text-xs text-slate-500 capitalize">{g.event.category.toLowerCase().replace('_', ' ')}</p>
                     {g.event.startTime && <p className="text-xs text-slate-500 mt-0.5">{formatEventTime(g.event.startTime)}</p>}
                     {g.event.location?.name && <p className="text-xs text-slate-500 mt-0.5">{g.event.location.name}</p>}
+                    <a
+                      href={googleDirUrl(g.pos, 'transit')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-brand-600 hover:underline"
+                    >
+                      Directions here <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
                 </Popup>
               </Marker>
@@ -233,6 +259,15 @@ export function DayMap({ days, geocodeContext }: { days: ItineraryDay[]; geocode
                     <option key={m} value={m}>{MODE_META[m].label}</option>
                   ))}
                 </select>
+                <a
+                  href={googleDirUrl(l.to.pos, l.mode, l.from.pos)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  title="Open these directions in Google Maps"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               </div>
             );
           })}
