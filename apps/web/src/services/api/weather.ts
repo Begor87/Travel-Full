@@ -8,6 +8,7 @@ export interface DailyForecast {
   main: string;
   description: string;
   icon: string;
+  isEstimate: boolean;
 }
 
 export interface ForecastResult {

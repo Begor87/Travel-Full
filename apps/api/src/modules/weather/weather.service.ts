@@ -10,12 +10,22 @@ import { getForecast, type ForecastResult } from '../../services/weather.js';
 export async function getTripWeather(tripId: string, userId: string): Promise<ForecastResult | null> {
   await assertTripAccess(tripId, userId);
 
-  const destination = await prisma.tripDestination.findFirst({
-    where: { tripId, latitude: { not: null }, longitude: { not: null } },
-    orderBy: { order: 'asc' },
-  });
+  const [trip, destination] = await Promise.all([
+    prisma.trip.findUnique({ where: { id: tripId }, select: { startDate: true, endDate: true } }),
+    prisma.tripDestination.findFirst({
+      where: { tripId, latitude: { not: null }, longitude: { not: null } },
+      orderBy: { order: 'asc' },
+    }),
+  ]);
 
   if (!destination?.latitude || !destination?.longitude) return null;
 
-  return getForecast(destination.latitude, destination.longitude);
+  // One Call 4.0 covers the whole trip window, even months out — but only from
+  // today onward (no past forecasts). Clamp the start to today.
+  const today = new Date().toISOString().slice(0, 10);
+  const start = trip ? trip.startDate.toISOString().slice(0, 10) : undefined;
+  const end = trip ? trip.endDate.toISOString().slice(0, 10) : undefined;
+  const effectiveStart = start && start > today ? start : today;
+
+  return getForecast(destination.latitude, destination.longitude, effectiveStart, end);
 }

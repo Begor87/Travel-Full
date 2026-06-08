@@ -1,4 +1,4 @@
-import { Sun, Cloud, CloudSun, CloudRain, CloudDrizzle, CloudLightning, CloudSnow, CloudFog } from 'lucide-react';
+import { Sun, Cloud, CloudSun, CloudRain, CloudDrizzle, CloudLightning, CloudSnow, CloudFog, Thermometer } from 'lucide-react';
 import { cn } from '@/shared/utils/cn.ts';
 import { usePreferences, isImperial } from '@/shared/hooks/usePreferences.ts';
 import type { DailyForecast } from '@/services/api/weather.ts';
@@ -37,9 +37,15 @@ const toF = (c: number) => Math.round((c * 9) / 5 + 32);
 export function WeatherChip({ forecast, className }: WeatherChipProps) {
   const { distanceUnit } = usePreferences();
   const imperial = isImperial(distanceUnit);
-  const { Icon, color } = weatherVisual(forecast.main, forecast.icon);
   const hi = imperial ? toF(forecast.tempMax) : forecast.tempMax;
   const lo = imperial ? toF(forecast.tempMin) : forecast.tempMin;
+
+  // Far-future days are temperature-only climate estimates (no conditions).
+  const Icon = forecast.isEstimate ? Thermometer : weatherVisual(forecast.main, forecast.icon).Icon;
+  const color = forecast.isEstimate ? 'text-slate-400' : weatherVisual(forecast.main, forecast.icon).color;
+  const title = forecast.isEstimate
+    ? 'Seasonal estimate (temperature only, this far ahead)'
+    : forecast.description.replace(/^\w/, (c) => c.toUpperCase());
 
   return (
     <div
@@ -47,10 +53,11 @@ export function WeatherChip({ forecast, className }: WeatherChipProps) {
         'inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60',
         className,
       )}
-      title={forecast.description.replace(/^\w/, (c) => c.toUpperCase())}
+      title={title}
     >
       <Icon className={cn('w-4 h-4 flex-shrink-0', color)} />
       <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+        {forecast.isEstimate && <span className="text-slate-400 dark:text-slate-500">~</span>}
         {hi}°
         <span className="text-slate-400 dark:text-slate-500"> / {lo}°</span>
       </span>
